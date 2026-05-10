@@ -1,4 +1,4 @@
-using Mouse2Joy.Engine.StickModels;
+using Mouse2Joy.Engine.Modifiers;
 using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.Engine.Mapping;
@@ -8,7 +8,12 @@ namespace Mouse2Joy.Engine.Mapping;
 /// 1. Predicate <see cref="ShouldSwallow"/> — used by the input backend's
 ///    suppression decision. Pure over the active profile snapshot.
 /// 2. Apply an event to output state buckets — called on the engine thread
-///    after the event is dequeued.
+///    after the event is dequeued. Forwards to per-binding ChainEvaluators.
+///
+/// Stateful chain evaluators live in <see cref="OutputStateBuckets.Chains"/>.
+/// They are created lazily on first event for a binding (via
+/// <see cref="EnsureChain"/>) and evicted on profile change when a binding's
+/// modifier list value-changes.
 /// </summary>
 internal sealed class BindingResolver
 {
@@ -24,23 +29,27 @@ internal sealed class BindingResolver
     public void SetProfile(Profile profile, OutputStateBuckets buckets)
     {
         _profile = profile;
-        buckets.ResetForIdleReport();
-        // Drop processors that no longer belong to any binding to avoid leaks,
-        // OR whose StickModel has changed so the next event lazily rebuilds
-        // from the new config. StickModel is a record (value equality), so a
-        // single != check covers both kind switches and parameter tweaks.
-        // Bindings with a null StickModel use a factory default and are not
-        // evicted — there is nothing to compare against.
+        // Reset transient outputs but DON'T blow away the chain cache —
+        // we only evict the chains whose configuration actually changed.
+        // Soft-mute uses ResetForIdleReport to zero per-chain state without
+        // dropping the chains.
+        buckets.Buttons.Clear();
+        buckets.DPad.Clear();
+        buckets.Triggers.Clear();
+
         var bindingById = profile.Bindings.ToDictionary(b => b.Id);
-        foreach (var id in buckets.StickProcessors.Keys.ToList())
+        foreach (var id in buckets.Chains.Keys.ToList())
         {
             if (!bindingById.TryGetValue(id, out var b))
             {
-                buckets.StickProcessors.Remove(id);
+                buckets.Chains.Remove(id);
                 continue;
             }
-            if (b.StickModel is { } model && model != buckets.StickProcessors[id].Model)
-                buckets.StickProcessors.Remove(id);
+            var cached = buckets.Chains[id];
+            // Source kind change must rebuild (different adapter); modifier
+            // list value-equality covers the rest.
+            if (!Equals(cached.Adapter.Source, b.Source) || !cached.ConfigMatches(b.Modifiers))
+                buckets.Chains.Remove(id);
         }
     }
 
@@ -57,7 +66,7 @@ internal sealed class BindingResolver
         {
             var b = bindings[i];
             if (!b.Enabled || !b.SuppressInput) continue;
-            if (Matches(b.Source, ev))
+            if (Matches(b.Source, in ev))
                 return true;
         }
         return false;
@@ -71,125 +80,95 @@ internal sealed class BindingResolver
         {
             var b = bindings[i];
             if (!b.Enabled) continue;
-            if (!Matches(b.Source, ev)) continue;
-            ApplyBinding(b, in ev, buckets);
+            if (!Matches(b.Source, in ev)) continue;
+            var chain = EnsureChain(b, buckets);
+            if (!chain.IsValid) continue;
+            chain.Apply(in ev);
         }
     }
 
-    /// <summary>End-of-tick: advance stick processors and produce final stick deflections.</summary>
+    /// <summary>
+    /// End-of-tick: walk every enabled binding's chain to produce its final
+    /// signal, then route per target type. Stick axes sum and clamp to
+    /// [-1, 1]; triggers fold via |x| then sum and clamp to [0, 1]; buttons
+    /// and dpad use OR (any chain producing true wins).
+    /// </summary>
     public void AdvanceTick(double dt, OutputStateBuckets buckets, Dictionary<(Stick, AxisComponent), double> stickFinal)
     {
         stickFinal.Clear();
+        // Triggers and digital outputs are recomputed every tick from chain
+        // values; clear them so a chain that no longer fires drops to zero.
+        buckets.Triggers.Clear();
+        buckets.Buttons.Clear();
+        buckets.DPad.Clear();
 
         foreach (var binding in _profile.Bindings)
         {
             if (!binding.Enabled) continue;
-            if (binding.Target is not StickAxisTarget stick) continue;
+            var chain = EnsureChain(binding, buckets);
+            if (!chain.IsValid) continue;
 
-            double contribution = 0;
+            var sig = chain.EndOfTick(dt);
 
-            // Mouse-axis sources route through a stateful processor.
-            if (binding.Source is MouseAxisSource && buckets.StickProcessors.TryGetValue(binding.Id, out var processor))
+            switch (binding.Target)
             {
-                contribution += processor.Advance(dt);
+                case StickAxisTarget sa:
+                {
+                    if (sig.Type != SignalType.Scalar) continue;
+                    var key = (sa.Stick, sa.Component);
+                    var existing = stickFinal.TryGetValue(key, out var v) ? v : 0.0;
+                    stickFinal[key] = Clamp1(existing + sig.ScalarValue);
+                    break;
+                }
+                case TriggerTarget tt:
+                {
+                    if (sig.Type != SignalType.Scalar) continue;
+                    var folded = Math.Abs(sig.ScalarValue);
+                    var existing = buckets.Triggers.TryGetValue(tt.Trigger, out var v) ? v : 0.0;
+                    var sum = existing + folded;
+                    if (sum > 1.0) sum = 1.0;
+                    buckets.Triggers[tt.Trigger] = sum;
+                    break;
+                }
+                case ButtonTarget bt:
+                {
+                    if (sig.Type != SignalType.Digital) continue;
+                    if (!buckets.Buttons.TryGetValue(bt.Button, out var prev)) prev = false;
+                    buckets.Buttons[bt.Button] = prev || sig.DigitalValue;
+                    break;
+                }
+                case DPadTarget dp:
+                {
+                    if (sig.Type != SignalType.Digital) continue;
+                    if (!buckets.DPad.TryGetValue(dp.Direction, out var prev)) prev = false;
+                    buckets.DPad[dp.Direction] = prev || sig.DigitalValue;
+                    break;
+                }
             }
-
-            // Direct contributions (key-held +/-1, scroll, etc.) layer on top.
-            if (buckets.StickDirect.TryGetValue((stick.Stick, stick.Component), out var direct))
-                contribution += direct;
-
-            contribution = CurveEvaluator.Evaluate(contribution, binding.Curve);
-
-            var key = (stick.Stick, stick.Component);
-            if (stickFinal.TryGetValue(key, out var existing))
-                stickFinal[key] = Clamp1(existing + contribution);
-            else
-                stickFinal[key] = Clamp1(contribution);
         }
+    }
 
-        // Direct StickDirect entries clear at end of tick — they represent
-        // momentary contributions like scroll pulses. Held-key contributions
-        // are re-asserted via key-up clearing them on release; for held
-        // keys we keep the value across ticks. To support both, we rely on
-        // ApplyBinding to set/unset StickDirect on key down/up.
-        // Therefore: do NOT clear here.
+    private static ChainEvaluator EnsureChain(Binding binding, OutputStateBuckets buckets)
+    {
+        if (buckets.Chains.TryGetValue(binding.Id, out var existing)
+            && Equals(existing.Adapter.Source, binding.Source)
+            && existing.ConfigMatches(binding.Modifiers))
+        {
+            return existing;
+        }
+        var chain = new ChainEvaluator(binding.Source, binding.Modifiers, binding.Target);
+        buckets.Chains[binding.Id] = chain;
+        return chain;
     }
 
     private static double Clamp1(double v) => v > 1.0 ? 1.0 : v < -1.0 ? -1.0 : v;
 
     private static bool Matches(InputSource source, in RawEvent ev) => source switch
     {
-        MouseAxisSource ma => ev.Kind == RawEventKind.MouseMove && (ma.Axis == MouseAxis.X || ma.Axis == MouseAxis.Y),
+        MouseAxisSource => ev.Kind == RawEventKind.MouseMove,
         MouseButtonSource mb => ev.Kind == RawEventKind.MouseButton && ev.MouseButton == mb.Button,
         MouseScrollSource ms => ev.Kind == RawEventKind.MouseScroll && ev.Scroll == ms.Direction,
         KeySource ks => ev.Kind == RawEventKind.Key && ev.Key.Equals(ks.Key),
         _ => false
     };
-
-    private static void ApplyBinding(Binding binding, in RawEvent ev, OutputStateBuckets buckets)
-    {
-        switch (binding.Target)
-        {
-            case ButtonTarget bt:
-                buckets.Buttons[bt.Button] = ReadDigitalDown(binding.Source, in ev);
-                break;
-            case DPadTarget dp:
-                buckets.DPad[dp.Direction] = ReadDigitalDown(binding.Source, in ev);
-                break;
-            case TriggerTarget tt:
-                buckets.Triggers[tt.Trigger] = ReadDigitalDown(binding.Source, in ev) ? 1.0 : 0.0;
-                break;
-            case StickAxisTarget sa:
-                ApplyStick(binding, sa, in ev, buckets);
-                break;
-        }
-    }
-
-    private static bool ReadDigitalDown(InputSource source, in RawEvent ev) => source switch
-    {
-        MouseButtonSource => ev.ButtonDown,
-        KeySource => ev.KeyDown,
-        MouseScrollSource => true, // scroll is treated as a momentary press; release happens via tick reset
-        _ => false
-    };
-
-    private static void ApplyStick(Binding binding, StickAxisTarget sa, in RawEvent ev, OutputStateBuckets buckets)
-    {
-        var key = (sa.Stick, sa.Component);
-
-        switch (binding.Source)
-        {
-            case MouseAxisSource ma:
-            {
-                if (!buckets.StickProcessors.TryGetValue(binding.Id, out var processor))
-                {
-                    processor = StickProcessorFactory.Create(binding.StickModel);
-                    buckets.StickProcessors[binding.Id] = processor;
-                }
-                var delta = ma.Axis == MouseAxis.X ? ev.MouseDeltaX : ev.MouseDeltaY;
-                if (delta != 0)
-                    processor.AddDelta(delta);
-                break;
-            }
-            case KeySource:
-            {
-                // A key bound to a stick axis acts as +1 or -1 while held.
-                // Sign is encoded in the curve's sensitivity (negative = inverted).
-                // The simplest convention: down -> +1, up -> 0; users invert with negative sensitivity.
-                buckets.StickDirect[key] = ev.KeyDown ? 1.0 : 0.0;
-                break;
-            }
-            case MouseButtonSource:
-            {
-                buckets.StickDirect[key] = ev.ButtonDown ? 1.0 : 0.0;
-                break;
-            }
-            case MouseScrollSource:
-            {
-                // A scroll click contributes a momentary +1 (cleared at end of tick by InputEngine).
-                buckets.StickDirect[key] = 1.0;
-                break;
-            }
-        }
-    }
 }

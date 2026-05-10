@@ -3,32 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:Mouse2Joy.UI.Controls"
         xmlns:tt="clr-namespace:Mouse2Joy.UI.Tooltips"
-        Title="Edit Binding" Width="640" MinWidth="520" MinHeight="600"
-        SizeToContent="Height" ResizeMode="CanResize"
+        xmlns:vm="clr-namespace:Mouse2Joy.UI.ViewModels.Editor"
+        Title="Edit Binding" Width="900" Height="640" MinWidth="780" MinHeight="560"
+        ResizeMode="CanResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Window.Resources>
-        <tt:TooltipContent x:Key="SuppressInputTooltip"
-                           Description="When checked, the matching real input is swallowed so it doesn't reach the focused app (cursor doesn't move, key doesn't type). When unchecked, it passes through and the gamepad output is generated in addition."
-                           Advice="Default for mouse-axis: checked. Default for keys: unchecked."/>
-        <tt:TooltipContent x:Key="LabelTooltip"
-                           Description="Optional name shown in the bindings table. Use it to disambiguate similar bindings (e.g. 'Steering', 'Throttle')."
-                           Typical="Leave blank to auto-label as Source → Target"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Editor/ModifierParamsTemplates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <tt:TooltipContent x:Key="SuppressInputTooltip"
+                               Description="When checked, the matching real input is swallowed so it doesn't reach the focused app (cursor doesn't move, key doesn't type). When unchecked, it passes through and the gamepad output is generated in addition."
+                               Advice="Default for mouse-axis: checked. Default for keys: unchecked."/>
+            <tt:TooltipContent x:Key="LabelTooltip"
+                               Description="Optional name shown in the bindings table. Use it to disambiguate similar bindings (e.g. 'Steering', 'Throttle')."
+                               Typical="Leave blank to auto-label as Source → Target"/>
+        </ResourceDictionary>
     </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
 
         <!-- Label -->
-        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="120"/>
                 <ColumnDefinition Width="*"/>
@@ -39,140 +42,202 @@
                      c:PlaceholderText.Text=""/>
         </Grid>
 
-        <!-- Source -->
-        <GroupBox Grid.Row="1" Grid.Column="0" Header="Source" Margin="0,0,6,6">
-            <StackPanel>
-                <ComboBox x:Name="SourceKindCombo" Margin="4">
-                    <ComboBoxItem Content="Mouse axis"/>
-                    <ComboBoxItem Content="Mouse button"/>
-                    <ComboBoxItem Content="Mouse scroll"/>
-                    <ComboBoxItem Content="Key"/>
-                </ComboBox>
-                <ComboBox x:Name="MouseAxisCombo" Margin="4" Visibility="Collapsed">
-                    <ComboBoxItem Content="X"/>
-                    <ComboBoxItem Content="Y"/>
-                </ComboBox>
-                <ComboBox x:Name="MouseButtonCombo" Margin="4" Visibility="Collapsed">
-                    <ComboBoxItem Content="Left"/>
-                    <ComboBoxItem Content="Right"/>
-                    <ComboBoxItem Content="Middle"/>
-                    <ComboBoxItem Content="X1"/>
-                    <ComboBoxItem Content="X2"/>
-                </ComboBox>
-                <ComboBox x:Name="MouseScrollCombo" Margin="4" Visibility="Collapsed">
-                    <ComboBoxItem Content="Up"/>
-                    <ComboBoxItem Content="Down"/>
-                </ComboBox>
-                <c:KeyCaptureBox x:Name="KeyBox" Margin="4" Visibility="Collapsed"/>
-            </StackPanel>
-        </GroupBox>
-
-        <!-- Target -->
-        <GroupBox Grid.Row="1" Grid.Column="1" Header="Target" Margin="6,0,0,6">
-            <StackPanel>
-                <ComboBox x:Name="TargetKindCombo" Margin="4">
-                    <ComboBoxItem Content="Stick axis"/>
-                    <ComboBoxItem Content="Trigger"/>
-                    <ComboBoxItem Content="Button"/>
-                    <ComboBoxItem Content="D-Pad"/>
-                </ComboBox>
-                <StackPanel x:Name="StickPanel" Visibility="Collapsed">
-                    <ComboBox x:Name="StickCombo" Margin="4">
-                        <ComboBoxItem Content="Left"/>
-                        <ComboBoxItem Content="Right"/>
+        <!-- Source / Target / Suppress -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <GroupBox Grid.Column="0" Header="Source" Margin="0,0,6,0">
+                <StackPanel>
+                    <ComboBox x:Name="SourceKindCombo" Margin="4">
+                        <ComboBoxItem Content="Mouse axis"/>
+                        <ComboBoxItem Content="Mouse button"/>
+                        <ComboBoxItem Content="Mouse scroll"/>
+                        <ComboBoxItem Content="Key"/>
                     </ComboBox>
-                    <ComboBox x:Name="StickAxisCombo" Margin="4">
+                    <ComboBox x:Name="MouseAxisCombo" Margin="4" Visibility="Collapsed">
                         <ComboBoxItem Content="X"/>
                         <ComboBoxItem Content="Y"/>
                     </ComboBox>
+                    <ComboBox x:Name="MouseButtonCombo" Margin="4" Visibility="Collapsed">
+                        <ComboBoxItem Content="Left"/>
+                        <ComboBoxItem Content="Right"/>
+                        <ComboBoxItem Content="Middle"/>
+                        <ComboBoxItem Content="X1"/>
+                        <ComboBoxItem Content="X2"/>
+                    </ComboBox>
+                    <ComboBox x:Name="MouseScrollCombo" Margin="4" Visibility="Collapsed">
+                        <ComboBoxItem Content="Up"/>
+                        <ComboBoxItem Content="Down"/>
+                    </ComboBox>
+                    <c:KeyCaptureBox x:Name="KeyBox" Margin="4" Visibility="Collapsed"/>
+                    <CheckBox x:Name="SuppressCb" Content="Suppress real input"
+                              Margin="4,8,4,4"
+                              ToolTip="{StaticResource SuppressInputTooltip}"/>
                 </StackPanel>
-                <ComboBox x:Name="TriggerCombo" Margin="4" Visibility="Collapsed">
-                    <ComboBoxItem Content="Left"/>
-                    <ComboBoxItem Content="Right"/>
-                </ComboBox>
-                <ComboBox x:Name="ButtonCombo" Margin="4" Visibility="Collapsed"/>
-                <ComboBox x:Name="DPadCombo" Margin="4" Visibility="Collapsed">
-                    <ComboBoxItem Content="Up"/>
-                    <ComboBoxItem Content="Down"/>
-                    <ComboBoxItem Content="Left"/>
-                    <ComboBoxItem Content="Right"/>
-                </ComboBox>
-            </StackPanel>
-        </GroupBox>
+            </GroupBox>
+            <GroupBox Grid.Column="1" Header="Target" Margin="6,0,0,0">
+                <StackPanel>
+                    <ComboBox x:Name="TargetKindCombo" Margin="4">
+                        <ComboBoxItem Content="Stick axis"/>
+                        <ComboBoxItem Content="Trigger"/>
+                        <ComboBoxItem Content="Button"/>
+                        <ComboBoxItem Content="D-Pad"/>
+                    </ComboBox>
+                    <StackPanel x:Name="StickPanel" Visibility="Collapsed">
+                        <ComboBox x:Name="StickCombo" Margin="4">
+                            <ComboBoxItem Content="Left"/>
+                            <ComboBoxItem Content="Right"/>
+                        </ComboBox>
+                        <ComboBox x:Name="StickAxisCombo" Margin="4">
+                            <ComboBoxItem Content="X"/>
+                            <ComboBoxItem Content="Y"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <ComboBox x:Name="TriggerCombo" Margin="4" Visibility="Collapsed">
+                        <ComboBoxItem Content="Left"/>
+                        <ComboBoxItem Content="Right"/>
+                    </ComboBox>
+                    <ComboBox x:Name="ButtonCombo" Margin="4" Visibility="Collapsed"/>
+                    <ComboBox x:Name="DPadCombo" Margin="4" Visibility="Collapsed">
+                        <ComboBoxItem Content="Up"/>
+                        <ComboBoxItem Content="Down"/>
+                        <ComboBoxItem Content="Left"/>
+                        <ComboBoxItem Content="Right"/>
+                    </ComboBox>
+                </StackPanel>
+            </GroupBox>
+        </Grid>
 
-        <!-- Curve + stick model -->
-        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Curve" Margin="0,0,0,6">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <c:CurveEditorControl x:Name="CurveEditor" Width="200" Height="200" Margin="4"/>
-                <Grid Grid.Column="1" Margin="6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="60"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="Sensitivity" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
-                    <Slider x:Name="SensSlider" Grid.Row="0" Grid.Column="1" Minimum="0.1" Maximum="5" Value="1" SmallChange="0.05"/>
-                    <TextBox x:Name="SensTb" Grid.Row="0" Grid.Column="2" Width="50" Text="{Binding ElementName=SensSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+        <!-- Modifier chain (left list + right param pane) -->
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" MinWidth="280"/>
+                <ColumnDefinition Width="3*" MinWidth="320"/>
+            </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Inner deadzone" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
-                    <Slider x:Name="DzSlider" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="0.5" Value="0" SmallChange="0.01"/>
-                    <TextBox x:Name="DzTb" Grid.Row="1" Grid.Column="2" Width="50" Text="{Binding ElementName=DzSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+            <!-- Chain list -->
+            <GroupBox Grid.Column="0" Header="Modifier chain" Margin="0,0,4,0">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="4">
+                        <ComboBox x:Name="AddModifierCombo" Width="220"
+                                  IsEnabled="True" DisplayMemberPath="Name"/>
+                        <Button x:Name="AddModifierBtn" Content="+ Add" Width="60" Margin="6,0,0,0"
+                                Click="OnAddModifier"/>
+                    </DockPanel>
+                    <ListBox x:Name="ChainList"
+                             ItemsSource="{Binding Modifiers}"
+                             SelectedItem="{Binding SelectedCard, Mode=TwoWay}"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Background="Transparent" BorderThickness="0"
+                             Margin="4">
+                        <ListBox.ItemContainerStyle>
+                            <!-- Replace the default ListBoxItem chrome entirely so the
+                                 system selection highlight (which on Windows flips to
+                                 a near-white background, leaving our dark card text
+                                 unreadable) doesn't fight the card. The card's own
+                                 BorderBrush handles the "selected" affordance via a
+                                 trigger below. -->
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Focusable" Value="True"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="CardBorder"
+                                        BorderBrush="#3A3A45" BorderThickness="1" CornerRadius="4"
+                                        Background="#262630" Margin="0,2" Padding="6,4">
+                                    <Grid TextElement.Foreground="#E8E8EE">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  ToolTip="Enable / disable this modifier (passthrough when off)"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                                                   Foreground="#E8E8EE" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Button Content="▲" Width="24" Margin="2,0" Click="OnMoveUp" Tag="{Binding}"
+                                                    ToolTip="Move modifier up in the chain"/>
+                                            <Button Content="▼" Width="24" Margin="2,0" Click="OnMoveDown" Tag="{Binding}"
+                                                    ToolTip="Move modifier down in the chain"/>
+                                            <Button Content="✕" Width="24" Margin="2,0" Click="OnRemove" Tag="{Binding}"
+                                                    ToolTip="Remove this modifier"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <!-- Selection affordance: brighten the border on the
+                                         selected card without changing its background, so
+                                         the card text stays readable in either state. -->
+                                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                                        <Setter TargetName="CardBorder" Property="BorderBrush" Value="#6AA0FF"/>
+                                        <Setter TargetName="CardBorder" Property="Background" Value="#2D2D3C"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </GroupBox>
 
-                    <TextBlock Text="Outer saturation" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
-                    <Slider x:Name="SatSlider" Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="0.5" Value="0" SmallChange="0.01"/>
-                    <TextBox x:Name="SatTb" Grid.Row="2" Grid.Column="2" Width="50" Text="{Binding ElementName=SatSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+            <!-- Param pane (right) -->
+            <GroupBox Grid.Column="1" Header="Selected modifier" Margin="4,0,0,0">
+                <DockPanel>
+                    <ContentControl
+                        Content="{Binding SelectedProxy}"
+                        Margin="6"/>
+                </DockPanel>
+            </GroupBox>
+        </Grid>
 
-                    <TextBlock Text="Exponent" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
-                    <Slider x:Name="ExpSlider" Grid.Row="3" Grid.Column="1" Minimum="0.25" Maximum="4" Value="1" SmallChange="0.05"/>
-                    <TextBox x:Name="ExpTb" Grid.Row="3" Grid.Column="2" Width="50" Text="{Binding ElementName=ExpSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
-                </Grid>
-            </Grid>
-        </GroupBox>
+        <!-- Preview + auto-insert notice -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" BorderBrush="#3A3A45" BorderThickness="1" CornerRadius="4" Margin="0,4">
+                <c:ChainPreviewControl x:Name="Preview" Width="200" Height="200" Margin="6"/>
+            </Border>
+            <TextBlock Grid.Column="1"
+                       x:Name="AutoInsertNoticeTb"
+                       Text="{Binding AutoInsertNotice}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       FontStyle="Italic"
+                       Foreground="#A0C0FF"
+                       Margin="12,0,0,0"/>
+        </Grid>
 
-        <!-- Stick model -->
-        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Stick model (only when target is a stick axis)">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition x:Name="Param2Row" Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="160"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <ComboBox x:Name="StickModelCombo" Grid.Row="0" Grid.ColumnSpan="2" Margin="4">
-                    <ComboBoxItem Content="Velocity (decay)"/>
-                    <ComboBoxItem Content="Accumulator (spring)"/>
-                    <ComboBoxItem Content="Persistent (no recenter)"/>
-                </ComboBox>
-                <TextBlock x:Name="Param1Label" Text="Param 1" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="4"/>
-                <TextBox x:Name="Param1Tb" Grid.Row="1" Grid.Column="1" Margin="4" Text="8.0"/>
-                <TextBlock x:Name="Param2Label" Text="Param 2" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="4"/>
-                <TextBox x:Name="Param2Tb" Grid.Row="2" Grid.Column="1" Margin="4" Text="800.0"/>
-            </Grid>
-        </GroupBox>
+        <!-- Validation banner -->
+        <Border Grid.Row="4" Background="#3F1A1A" BorderBrush="#7F2929" BorderThickness="1"
+                CornerRadius="4" Padding="8,4" Margin="0,4,0,0"
+                Visibility="{Binding IsValid, Converter={StaticResource InvBoolToVis}}">
+            <TextBlock Text="{Binding ValidationMessage}" Foreground="#FFE4E4" TextWrapping="Wrap"/>
+        </Border>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
-            <CheckBox x:Name="SuppressCb" Content="Suppress real input"
-                      VerticalAlignment="Center" Margin="0,0,12,0"
-                      ToolTip="{StaticResource SuppressInputTooltip}"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Width="200" >
-                <Button Content="OK" Width="90" Margin="4" Click="OnOk"/>
-                <Button Content="Cancel" Width="90" Margin="4" Click="OnCancel"/>
-            </StackPanel>
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="OK" Width="90" Margin="4" Click="OnOk"
+                    IsEnabled="{Binding IsValid}"/>
+            <Button Content="Cancel" Width="90" Margin="4" Click="OnCancel"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -19,21 +19,21 @@ public class ProfileSerializationRoundtripTests
                 new() {
                     Source = new MouseAxisSource(MouseAxis.X),
                     Target = new StickAxisTarget(Stick.Left, AxisComponent.X),
-                    StickModel = new VelocityStickModel(8.0, 800.0)
+                    Modifiers = new Modifier[] { new StickDynamicsModifier(StickDynamicsMode.Velocity, 8.0, 800.0) }
                 },
                 new() {
                     Source = new MouseAxisSource(MouseAxis.Y),
                     Target = new StickAxisTarget(Stick.Left, AxisComponent.Y),
-                    StickModel = new AccumulatorStickModel(4.0, 400.0)
+                    Modifiers = new Modifier[] { new StickDynamicsModifier(StickDynamicsMode.Accumulator, 4.0, 400.0) }
                 },
                 new() {
                     Source = new MouseButtonSource(MouseButton.Left),
-                    Target = new TriggerTarget(Trigger.Right)
+                    Target = new TriggerTarget(Trigger.Right),
+                    Modifiers = new Modifier[] { DigitalToScalarModifier.Default }
                 },
                 new() {
                     Source = new MouseScrollSource(ScrollDirection.Up),
-                    Target = new ButtonTarget(GamepadButton.A),
-                    Curve = new Curve(1.5, 0.1, 0.05, 1.2)
+                    Target = new ButtonTarget(GamepadButton.A)
                 },
                 new() {
                     Source = new KeySource(new VirtualKey(0x11, false)),
@@ -51,14 +51,14 @@ public class ProfileSerializationRoundtripTests
         roundtripped.Bindings.Should().HaveCount(5);
 
         roundtripped.Bindings[0].Source.Should().BeOfType<MouseAxisSource>();
-        roundtripped.Bindings[0].StickModel.Should().BeOfType<VelocityStickModel>();
-        roundtripped.Bindings[1].StickModel.Should().BeOfType<AccumulatorStickModel>();
+        roundtripped.Bindings[0].Modifiers[0].Should().BeOfType<StickDynamicsModifier>()
+            .Which.Mode.Should().Be(StickDynamicsMode.Velocity);
+        roundtripped.Bindings[1].Modifiers[0].Should().BeOfType<StickDynamicsModifier>()
+            .Which.Mode.Should().Be(StickDynamicsMode.Accumulator);
         roundtripped.Bindings[2].Target.Should().BeOfType<TriggerTarget>();
+        roundtripped.Bindings[2].Modifiers[0].Should().BeOfType<DigitalToScalarModifier>();
         roundtripped.Bindings[3].Source.Should().BeOfType<MouseScrollSource>();
         roundtripped.Bindings[4].Source.Should().BeOfType<KeySource>();
-
-        // Per-instance equality (records compare by value)
-        roundtripped.Bindings[3].Curve.Should().Be(profile.Bindings[3].Curve);
     }
 
     [Fact]
@@ -105,6 +105,6 @@ public class ProfileSerializationRoundtripTests
     {
         var profile = new Profile { Name = "x" };
         var json = JsonSerializer.Serialize(profile, JsonOptions.Default);
-        json.Should().Contain("\"schemaVersion\": 1");
+        json.Should().Contain("\"schemaVersion\": 2");
     }
 }

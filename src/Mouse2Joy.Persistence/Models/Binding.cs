@@ -5,10 +5,14 @@ public sealed record Binding
     public Guid Id { get; init; } = Guid.NewGuid();
     public required InputSource Source { get; init; }
     public required OutputTarget Target { get; init; }
-    public Curve Curve { get; init; } = Curve.Default;
 
-    /// <summary>Set only when Target is a <see cref="StickAxisTarget"/>; otherwise null.</summary>
-    public StickModel? StickModel { get; init; }
+    /// <summary>
+    /// Ordered list of transforms applied between Source and Target. The
+    /// engine evaluates these in order, threading a typed signal through
+    /// each. An empty list is valid only when Source's output signal type
+    /// already matches Target's input type (e.g. button → button).
+    /// </summary>
+    public IReadOnlyList<Modifier> Modifiers { get; init; } = Array.Empty<Modifier>();
 
     public bool Enabled { get; init; } = true;
 

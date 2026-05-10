@@ -2,8 +2,14 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tt="clr-namespace:Mouse2Joy.UI.Tooltips;assembly=Mouse2Joy.UI"
+             xmlns:conv="clr-namespace:Mouse2Joy.UI.Converters;assembly=Mouse2Joy.UI"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+        <!-- Inverse-bool-to-Visibility converter for binding-editor banners
+             and any other "show when false" flow in the app. -->
+        <conv:InvBoolToVisConverter x:Key="InvBoolToVis"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
         <!-- Typed template for structured tooltip content. Renders Typical
              first (italic, dim) so the at-a-glance answer is closest to
              the input being hovered, then Description, then Advice. Null

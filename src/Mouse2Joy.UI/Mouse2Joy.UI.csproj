@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Mouse2Joy.Engine\Mouse2Joy.Engine.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.Persistence\Mouse2Joy.Persistence.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.Input\Mouse2Joy.Input.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.VirtualPad\Mouse2Joy.VirtualPad.csproj" />
+  </ItemGroup>
+</Project>

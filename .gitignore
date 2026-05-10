@@ -1,0 +1,124 @@
+# ---------------------------------------------------------------------------
+# Mouse2Joy .gitignore
+# Based on the GitHub-curated VisualStudio.gitignore template, trimmed to what
+# this solution might realistically encounter and extended for Rider/JetBrains.
+#
+# IMPORTANT: the vendored Interception DLL and its SHA-256 pin must remain
+# tracked. They live under src/Mouse2Joy.App/native/x64/ and are intentionally
+# NOT matched by any rule below (no broad *.dll ignore — only build outputs).
+# ---------------------------------------------------------------------------
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+**/bin/
+**/obj/
+**/publish/
+[Pp]ublish/
+
+# Vendored native dependencies — must remain tracked. The `x64/` rule above
+# (intended for MSBuild platform output) otherwise swallows this folder.
+!src/Mouse2Joy.App/native/x64/
+!src/Mouse2Joy.App/native/x64/**
+
+## .NET / MSBuild
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.binlog
+*.tlog
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+*.trx
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.userprefs
+*.sln.docstates
+*.sln.iml
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+## ReSharper / Rider / JetBrains
+.idea/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## VS Code (keep shared workspace config, ignore local caches)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+.nuget/
+
+## ClickOnce / Publish profiles
+*.publishsettings
+publishProfiles/
+PublishScripts/
+
+## Code analysis / profiling
+*.dotCover
+*.dotTrace
+BenchmarkDotNet.Artifacts/
+
+## Backup & generated
+*.bak
+*.cache
+*.tmp
+*.log
+*.swp
+*~
+
+## OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+$RECYCLE.BIN/
+
+## Windows installer / native build artefacts (project does not ship these,
+## but keep the doors closed in case a future packaging script lands here)
+*.msi
+*.msm
+*.msp
+*.cab

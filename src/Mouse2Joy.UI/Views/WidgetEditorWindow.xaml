@@ -1,0 +1,191 @@
+<Window x:Class="Mouse2Joy.UI.Views.WidgetEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="clr-namespace:Mouse2Joy.UI.Controls"
+        Title="Widget"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        MinWidth="380">
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="120"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Type -->
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Type" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="TypeCb" Margin="0,0,0,8"
+                   SelectionChanged="OnTypeChanged"/>
+
+        <!-- Label (user-defined) -->
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Label" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <TextBox   Grid.Row="1" Grid.Column="1" x:Name="LabelTb" Margin="0,0,0,8"
+                   ToolTip="Optional. Shown in the widgets table to disambiguate multiple widgets of the same type. When blank, the table uses the auto-generated label shown here as placeholder."
+                   ctl:PlaceholderText.Text=""/>
+
+        <!-- Visible -->
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Visible" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="VisibleCb" Margin="0,0,0,8" VerticalAlignment="Center"
+                   Click="OnVisibleClicked"/>
+
+        <!-- Position section -->
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Text="Position" FontWeight="Bold" Margin="0,4,0,4"/>
+
+        <!-- Monitor (which screen the widget renders on; inherited from anchor parent when parented) -->
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Monitor" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <ComboBox  Grid.Row="4" Grid.Column="1" x:Name="MonitorCb" Margin="0,0,0,8"
+                   SelectionChanged="OnMonitorChanged"
+                   DisplayMemberPath="Label"
+                   ToolTipService.ShowOnDisabled="True"/>
+
+        <!-- Anchor parent. When set, the widget's offset is interpreted relative to the
+             parent's rendered rect; when "Monitor", the monitor's bounds are the frame. -->
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Anchor parent" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <ComboBox  Grid.Row="5" Grid.Column="1" x:Name="ParentCb" Margin="0,0,0,8"
+                   SelectionChanged="OnParentChanged"
+                   DisplayMemberPath="Label"/>
+
+        <!-- Anchor to: which point on the parent/monitor frame the offset starts from. -->
+        <TextBlock Grid.Row="6" Grid.Column="0" Text="Anchor to" VerticalAlignment="Center" Margin="0,0,8,8"
+                   ToolTip="Which point on the reference frame (parent or monitor) the offset starts from."/>
+        <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="AnchorPointCb" Margin="0,0,0,8"
+                   SelectionChanged="OnAnchorPointChanged"/>
+
+        <!-- Self anchor: which point on the widget itself lands at the anchor + offset. -->
+        <TextBlock Grid.Row="7" Grid.Column="0" Text="Self anchor" VerticalAlignment="Center" Margin="0,0,8,8"
+                   ToolTip="Which point on this widget lands at the anchor + offset. Use bottom-right to align this widget's bottom-right with the parent's bottom-right."/>
+        <ComboBox  Grid.Row="7" Grid.Column="1" x:Name="SelfAnchorCb" Margin="0,0,0,8"
+                   SelectionChanged="OnSelfAnchorChanged"/>
+
+        <!-- Offset X (with reset-to-0 button on the right) -->
+        <TextBlock Grid.Row="8" Grid.Column="0" x:Name="XLabel" Text="Offset X" VerticalAlignment="Center" Margin="0,0,8,4"/>
+        <Grid Grid.Row="8" Grid.Column="1" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ctl:NumericUpDown Grid.Column="0" x:Name="XInput"
+                               Step="1" Decimals="0"/>
+            <Button Grid.Column="1" Content="⟲" Width="22" Margin="4,0,0,0"
+                    Padding="0" FontSize="11" ToolTip="Reset to 0"
+                    Click="OnResetX"/>
+        </Grid>
+
+        <!-- Offset Y (with reset-to-0 button on the right) -->
+        <TextBlock Grid.Row="9" Grid.Column="0" x:Name="YLabel" Text="Offset Y" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <Grid Grid.Row="9" Grid.Column="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ctl:NumericUpDown Grid.Column="0" x:Name="YInput"
+                               Step="1" Decimals="0"/>
+            <Button Grid.Column="1" Content="⟲" Width="22" Margin="4,0,0,0"
+                    Padding="0" FontSize="11" ToolTip="Reset to 0"
+                    Click="OnResetY"/>
+        </Grid>
+
+        <!-- Size section: explicit Width/Height in DIPs, with optional aspect lock.
+             Hidden for widget types that auto-size (e.g. Status text widget),
+             where the Font section below replaces it. -->
+        <TextBlock Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" x:Name="SizeHeader" Text="Size" FontWeight="Bold" Margin="0,4,0,4"/>
+
+        <!-- Width -->
+        <TextBlock Grid.Row="11" Grid.Column="0" x:Name="WidthLabel" Text="Width" VerticalAlignment="Center" Margin="0,0,8,4"/>
+        <ctl:NumericUpDown Grid.Row="11" Grid.Column="1" x:Name="WidthInput" Margin="0,0,0,4"
+                           Step="1" Decimals="0" Min="8"/>
+
+        <!-- Between Width and Height: aspect-lock toggle (left, icon-only,
+             highlighted when on) and swap-W/H button (right). Both control
+             the relationship between W and H so they share this row. -->
+        <Grid Grid.Row="12" Grid.Column="1" x:Name="LockSwapRow" Margin="0,2,0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ToggleButton Grid.Column="0" x:Name="LockAspectBtn"
+                          Width="26" Height="22" Padding="0" FontSize="13"
+                          ToolTipService.ShowOnDisabled="True"
+                          Click="OnLockAspectClicked"
+                          Content="🔗">
+                <!-- Highlight the toggle when locked: solid accent fill so the
+                     "is the lock on?" question is answerable at a glance. The
+                     default WPF ToggleButton :Checked style is too subtle on
+                     Win11 / Aero themes. -->
+                <ToggleButton.Style>
+                    <Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+                        <Style.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="#FF80C8FF"/>
+                                <Setter Property="BorderBrush" Value="#FF3070C0"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ToggleButton.Style>
+            </ToggleButton>
+            <Button Grid.Column="2" x:Name="SwapWhBtn"
+                    Width="26" Height="22" Padding="0" FontSize="13"
+                    ToolTip="Swap width and height"
+                    ToolTipService.ShowOnDisabled="True"
+                    Click="OnSwapWh"
+                    Content="⇅"/>
+        </Grid>
+
+        <TextBlock Grid.Row="13" Grid.Column="0" x:Name="HeightLabel" Text="Height" VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <ctl:NumericUpDown Grid.Row="13" Grid.Column="1" x:Name="HeightInput" Margin="0,0,0,8"
+                           Step="1" Decimals="0" Min="8"/>
+
+        <!-- Font section: text-only widgets (Status) replace Size with this.
+             Hidden for non-text widgets. Built dynamically in code-behind so
+             the controls share the same options-dict storage as the dynamic
+             Options panel below. -->
+        <TextBlock Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                   x:Name="FontHeader"
+                   Text="Font" FontWeight="Bold" Margin="0,4,0,4"
+                   Visibility="Collapsed"/>
+        <ItemsControl Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="3"
+                      x:Name="FontHost"
+                      Margin="0,0,0,8"
+                      Visibility="Collapsed"/>
+
+        <!-- Per-widget options -->
+        <TextBlock Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2"
+                   x:Name="OptionsHeader"
+                   Text="Options" FontWeight="Bold" Margin="0,4,0,4"/>
+        <ItemsControl Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2"
+                      x:Name="OptionsHost"
+                      Margin="0,0,0,12"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="16" Grid.Column="0" Grid.ColumnSpan="2"
+                    Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Cancel" Padding="14,2" Width="80" Margin="0,0,8,0"
+                    IsCancel="True" Click="OnCancel"/>
+            <Button Content="Save" Padding="14,2" Width="80"
+                    IsDefault="True" Click="OnSave"/>
+        </StackPanel>
+    </Grid>
+</Window>

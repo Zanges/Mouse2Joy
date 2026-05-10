@@ -1,0 +1,178 @@
+<Window x:Class="Mouse2Joy.UI.Views.BindingEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Mouse2Joy.UI.Controls"
+        xmlns:tt="clr-namespace:Mouse2Joy.UI.Tooltips"
+        Title="Edit Binding" Width="640" MinWidth="520" MinHeight="600"
+        SizeToContent="Height" ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Resources>
+        <tt:TooltipContent x:Key="SuppressInputTooltip"
+                           Description="When checked, the matching real input is swallowed so it doesn't reach the focused app (cursor doesn't move, key doesn't type). When unchecked, it passes through and the gamepad output is generated in addition."
+                           Advice="Default for mouse-axis: checked. Default for keys: unchecked."/>
+        <tt:TooltipContent x:Key="LabelTooltip"
+                           Description="Optional name shown in the bindings table. Use it to disambiguate similar bindings (e.g. 'Steering', 'Throttle')."
+                           Typical="Leave blank to auto-label as Source → Target"/>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Label -->
+        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Label" Grid.Column="0" VerticalAlignment="Center"
+                       ToolTip="{StaticResource LabelTooltip}"/>
+            <TextBox x:Name="LabelTb" Grid.Column="1" ToolTip="{StaticResource LabelTooltip}"
+                     c:PlaceholderText.Text=""/>
+        </Grid>
+
+        <!-- Source -->
+        <GroupBox Grid.Row="1" Grid.Column="0" Header="Source" Margin="0,0,6,6">
+            <StackPanel>
+                <ComboBox x:Name="SourceKindCombo" Margin="4">
+                    <ComboBoxItem Content="Mouse axis"/>
+                    <ComboBoxItem Content="Mouse button"/>
+                    <ComboBoxItem Content="Mouse scroll"/>
+                    <ComboBoxItem Content="Key"/>
+                </ComboBox>
+                <ComboBox x:Name="MouseAxisCombo" Margin="4" Visibility="Collapsed">
+                    <ComboBoxItem Content="X"/>
+                    <ComboBoxItem Content="Y"/>
+                </ComboBox>
+                <ComboBox x:Name="MouseButtonCombo" Margin="4" Visibility="Collapsed">
+                    <ComboBoxItem Content="Left"/>
+                    <ComboBoxItem Content="Right"/>
+                    <ComboBoxItem Content="Middle"/>
+                    <ComboBoxItem Content="X1"/>
+                    <ComboBoxItem Content="X2"/>
+                </ComboBox>
+                <ComboBox x:Name="MouseScrollCombo" Margin="4" Visibility="Collapsed">
+                    <ComboBoxItem Content="Up"/>
+                    <ComboBoxItem Content="Down"/>
+                </ComboBox>
+                <c:KeyCaptureBox x:Name="KeyBox" Margin="4" Visibility="Collapsed"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Target -->
+        <GroupBox Grid.Row="1" Grid.Column="1" Header="Target" Margin="6,0,0,6">
+            <StackPanel>
+                <ComboBox x:Name="TargetKindCombo" Margin="4">
+                    <ComboBoxItem Content="Stick axis"/>
+                    <ComboBoxItem Content="Trigger"/>
+                    <ComboBoxItem Content="Button"/>
+                    <ComboBoxItem Content="D-Pad"/>
+                </ComboBox>
+                <StackPanel x:Name="StickPanel" Visibility="Collapsed">
+                    <ComboBox x:Name="StickCombo" Margin="4">
+                        <ComboBoxItem Content="Left"/>
+                        <ComboBoxItem Content="Right"/>
+                    </ComboBox>
+                    <ComboBox x:Name="StickAxisCombo" Margin="4">
+                        <ComboBoxItem Content="X"/>
+                        <ComboBoxItem Content="Y"/>
+                    </ComboBox>
+                </StackPanel>
+                <ComboBox x:Name="TriggerCombo" Margin="4" Visibility="Collapsed">
+                    <ComboBoxItem Content="Left"/>
+                    <ComboBoxItem Content="Right"/>
+                </ComboBox>
+                <ComboBox x:Name="ButtonCombo" Margin="4" Visibility="Collapsed"/>
+                <ComboBox x:Name="DPadCombo" Margin="4" Visibility="Collapsed">
+                    <ComboBoxItem Content="Up"/>
+                    <ComboBoxItem Content="Down"/>
+                    <ComboBoxItem Content="Left"/>
+                    <ComboBoxItem Content="Right"/>
+                </ComboBox>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Curve + stick model -->
+        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Curve" Margin="0,0,0,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <c:CurveEditorControl x:Name="CurveEditor" Width="200" Height="200" Margin="4"/>
+                <Grid Grid.Column="1" Margin="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="60"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Sensitivity" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                    <Slider x:Name="SensSlider" Grid.Row="0" Grid.Column="1" Minimum="0.1" Maximum="5" Value="1" SmallChange="0.05"/>
+                    <TextBox x:Name="SensTb" Grid.Row="0" Grid.Column="2" Width="50" Text="{Binding ElementName=SensSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Text="Inner deadzone" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                    <Slider x:Name="DzSlider" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="0.5" Value="0" SmallChange="0.01"/>
+                    <TextBox x:Name="DzTb" Grid.Row="1" Grid.Column="2" Width="50" Text="{Binding ElementName=DzSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Text="Outer saturation" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+                    <Slider x:Name="SatSlider" Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="0.5" Value="0" SmallChange="0.01"/>
+                    <TextBox x:Name="SatTb" Grid.Row="2" Grid.Column="2" Width="50" Text="{Binding ElementName=SatSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Text="Exponent" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
+                    <Slider x:Name="ExpSlider" Grid.Row="3" Grid.Column="1" Minimum="0.25" Maximum="4" Value="1" SmallChange="0.05"/>
+                    <TextBox x:Name="ExpTb" Grid.Row="3" Grid.Column="2" Width="50" Text="{Binding ElementName=ExpSlider, Path=Value, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}"/>
+                </Grid>
+            </Grid>
+        </GroupBox>
+
+        <!-- Stick model -->
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Stick model (only when target is a stick axis)">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition x:Name="Param2Row" Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="StickModelCombo" Grid.Row="0" Grid.ColumnSpan="2" Margin="4">
+                    <ComboBoxItem Content="Velocity (decay)"/>
+                    <ComboBoxItem Content="Accumulator (spring)"/>
+                    <ComboBoxItem Content="Persistent (no recenter)"/>
+                </ComboBox>
+                <TextBlock x:Name="Param1Label" Text="Param 1" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="4"/>
+                <TextBox x:Name="Param1Tb" Grid.Row="1" Grid.Column="1" Margin="4" Text="8.0"/>
+                <TextBlock x:Name="Param2Label" Text="Param 2" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="4"/>
+                <TextBox x:Name="Param2Tb" Grid.Row="2" Grid.Column="1" Margin="4" Text="800.0"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <CheckBox x:Name="SuppressCb" Content="Suppress real input"
+                      VerticalAlignment="Center" Margin="0,0,12,0"
+                      ToolTip="{StaticResource SuppressInputTooltip}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Width="200" >
+                <Button Content="OK" Width="90" Margin="4" Click="OnOk"/>
+                <Button Content="Cancel" Width="90" Margin="4" Click="OnCancel"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

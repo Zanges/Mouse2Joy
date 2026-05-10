@@ -1,0 +1,325 @@
+<Window x:Class="Mouse2Joy.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Mouse2Joy.UI.Controls"
+        xmlns:tt="clr-namespace:Mouse2Joy.UI.Tooltips"
+        Title="Mouse2Joy" Width="900" Height="640"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <tt:TooltipContent x:Key="TickRateTooltip"
+                           Description="How often per second the engine submits a gamepad report and advances stick decay/spring math. Higher = smoother, more CPU. Clamped to a minimum of 60."
+                           Typical="250 (default)"/>
+    </Window.Resources>
+    <DockPanel>
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <DockPanel LastChildFill="True"/>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StatusBarItem DockPanel.Dock="Left"><TextBlock>Active profile:</TextBlock></StatusBarItem>
+            <StatusBarItem DockPanel.Dock="Left"><TextBlock Text="{Binding ActiveProfileName}" FontWeight="Bold"/></StatusBarItem>
+            <Separator DockPanel.Dock="Left"/>
+            <StatusBarItem DockPanel.Dock="Left"><TextBlock>Mode:</TextBlock></StatusBarItem>
+            <StatusBarItem DockPanel.Dock="Left"><TextBlock Text="{Binding EngineMode}" FontWeight="Bold"/></StatusBarItem>
+            <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <Button Content="Deactivate" Padding="8,2" Command="{Binding DeactivateCommand}"
+                        ToolTip="Disconnect the virtual pad and stop suppressing input. Equivalent to the hard toggle hotkey or the panic key (Ctrl+Shift+F12)."/>
+            </StatusBarItem>
+            <StatusBarItem/>
+        </StatusBar>
+
+        <TabControl Margin="6">
+            <!-- Profiles (also hosts bindings — they belong to a profile, not a global tab) -->
+            <TabItem Header="Profiles">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="240"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <DockPanel Grid.Column="0">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="New" Width="60" Margin="0,0,4,0" Command="{Binding NewProfileCommand}"/>
+                            <Button Content="Duplicate" Width="80" Margin="0,0,4,0" Command="{Binding DuplicateProfileCommand}"/>
+                            <Button Content="Delete" Width="60" Command="{Binding DeleteProfileCommand}"/>
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name"/>
+                    </DockPanel>
+                    <Grid Grid.Column="1" Margin="8,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Selected profile" FontWeight="Bold"/>
+                        <Grid Grid.Row="1" Margin="0,4,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Name" Grid.Column="0" VerticalAlignment="Center"/>
+                            <TextBox x:Name="NameTb" Grid.Column="1"
+                                     Text="{Binding SelectedProfile.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+                        <Grid Grid.Row="2" Margin="0,4,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Tick rate Hz" Grid.Column="0" VerticalAlignment="Center"
+                                       ToolTip="{StaticResource TickRateTooltip}"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SelectedProfile.TickRateHz, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="{StaticResource TickRateTooltip}"/>
+                        </Grid>
+                        <StackPanel Grid.Row="3" Orientation="Horizontal">
+                            <Button Content="Save profile" Width="120" Margin="0,0,8,0" Click="OnSaveProfile"
+                                    ToolTip="Saves the Name and Tick rate fields above. Bindings auto-save on Add/Edit/Delete."/>
+                            <Button Content="Activate (SoftMuted)" Width="140" Command="{Binding ActivateProfileCommand}"
+                                    ToolTip="Connect the virtual pad and arm this profile in soft-mute (input still passes through). Engage emulation with the soft toggle hotkey or the tray 'Soft mute' menu."/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="4" Text="Bindings" FontWeight="Bold" Margin="0,16,0,4"/>
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="Add binding" Width="100" Margin="0,0,4,0" Click="OnAddBinding"/>
+                            <Button x:Name="EditBindingBtn" Content="Edit" Width="80" Margin="0,0,4,0"
+                                    IsEnabled="False" Click="OnEditBinding"/>
+                            <Button x:Name="DeleteBindingBtn" Content="Delete" Width="80" Margin="0,0,4,0"
+                                    IsEnabled="False" Click="OnDeleteBinding"/>
+                            <Button x:Name="DuplicateBindingBtn" Content="Duplicate" Width="90"
+                                    IsEnabled="False" Click="OnDuplicateBinding"/>
+                        </StackPanel>
+                        <!-- Header row, fixed column widths matched to the data rows below. Mirrors the Overlay tab's Widgets table. -->
+                        <Border Grid.Row="6" Background="#F0F0F0" BorderBrush="#D0D0D0" BorderThickness="1"
+                                Padding="6,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="200"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="On"     FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Label"  FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="Source" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="Target" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <ListView x:Name="BindingsTable" Grid.Row="7"
+                                  BorderThickness="1,0,1,1" BorderBrush="#D0D0D0"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  SelectionChanged="OnBindingsSelectionChanged">
+                            <!-- Each row is clickable: clicking anywhere except the On checkbox opens the editor.
+                                 The checkbox eats the click via standard hit-testing; the row click is wired on
+                                 the inner Grid rather than the ListViewItem so the checkbox doesn't bubble it. -->
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Background="Transparent" Tag="{Binding}" MouseLeftButtonUp="OnBindingRowClicked"
+                                          Margin="6,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="200"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding LabelText}" Margin="6,0,0,0"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsAutoLabel}" Value="True">
+                                                            <Setter Property="FontStyle" Value="Italic"/>
+                                                            <Setter Property="Foreground" Value="#808080"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="2" Text="{Binding SourceLabel}"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding TargetLabel}"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- Hotkeys -->
+            <TabItem Header="Hotkeys">
+                <StackPanel Margin="12">
+                    <TextBlock Text="Soft toggle (mute, pad stays connected)" Margin="0,0,0,2"/>
+                    <c:KeyCaptureBox x:Name="SoftHk" Margin="0,0,0,8"/>
+                    <TextBlock Text="Hard toggle (disconnect virtual pad)" Margin="0,0,0,2"/>
+                    <c:KeyCaptureBox x:Name="HardHk" Margin="0,0,0,8"/>
+                    <Button Content="Save hotkeys" Width="160" HorizontalAlignment="Left" Click="OnSaveHotkeys"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Overlay -->
+            <TabItem Header="Overlay">
+                <DockPanel Margin="12">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <CheckBox x:Name="OverlayEnabledCb" Content="Show overlay" VerticalAlignment="Center" Click="OnToggleOverlay"/>
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Widgets" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <!-- Toolbar mirrors the bindings tab: Add / Edit / Delete / Duplicate. Edit, Delete
+                         and Duplicate are gated on a row being selected; the gating handler also lives
+                         in OnWidgetsSelectionChanged. -->
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                        <Button Content="Add widget" Width="100" Margin="0,0,4,0" Click="OnAddWidget"/>
+                        <Button x:Name="EditWidgetBtn" Content="Edit" Width="80" Margin="0,0,4,0"
+                                IsEnabled="False" Click="OnEditWidgetSelected"/>
+                        <Button x:Name="DeleteWidgetBtn" Content="Delete" Width="80" Margin="0,0,4,0"
+                                IsEnabled="False" Click="OnDeleteWidgetSelected"/>
+                        <Button x:Name="DuplicateWidgetBtn" Content="Duplicate" Width="90"
+                                IsEnabled="False" Click="OnDuplicateWidget"/>
+                    </StackPanel>
+
+                    <!-- Header row, fixed column widths matched to the data rows below. -->
+                    <Border DockPanel.Dock="Top" Background="#F0F0F0" BorderBrush="#D0D0D0" BorderThickness="1"
+                            Padding="6,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="160"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Visible" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Label"   FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="Type"    FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="Parent"  FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <ListView x:Name="WidgetsTable" BorderThickness="1,0,1,1" BorderBrush="#D0D0D0"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              SelectionChanged="OnWidgetsSelectionChanged">
+                        <!-- Each row is a clickable area: clicking anywhere except the Visible
+                             checkbox opens the editor. The checkbox eats the click via standard
+                             hit-testing, so this handler doesn't fire for it. -->
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Background="Transparent" Tag="{Binding}" MouseLeftButtonUp="OnRowClicked"
+                                      Margin="6,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                        <ColumnDefinition Width="160"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding Visible, Mode=TwoWay}"
+                                              VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="6,0,0,0"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Type}"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding ParentLabel}"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#606060"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </DockPanel>
+            </TabItem>
+
+            <!-- Settings -->
+            <TabItem Header="Settings">
+                <StackPanel Margin="12">
+                    <TextBlock Text="Application" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <CheckBox x:Name="StartMinimizedCb" Content="Start minimized to tray"
+                              Margin="0,0,0,6" Click="OnToggleStartMinimized"
+                              ToolTip="When enabled, Mouse2Joy launches into the tray without showing this window. Open it any time from the tray icon."/>
+                    <CheckBox x:Name="CloseToTrayCb" Content="Close button minimizes to tray (instead of exiting)"
+                              Margin="0,0,0,6" Click="OnToggleCloseToTray"
+                              ToolTip="When enabled, clicking the window's X hides Mouse2Joy to the tray and keeps it running (so global hotkeys and the panic key still work). Disable to make X fully exit the app."/>
+                    <CheckBox x:Name="StartWithWindowsCb" Content="Start with Windows"
+                              IsEnabled="False" Margin="0,0,0,6"
+                              ToolTip="Coming soon — needs elevated auto-start (Mouse2Joy requires admin for Interception). Plain Run-key registration would launch non-elevated and capture would fail silently."/>
+                    <TextBlock Text="(Start with Windows is not yet wired up — see tooltip.)"
+                               Foreground="DimGray" FontStyle="Italic" Margin="20,0,0,12"/>
+
+                    <Separator Margin="0,8"/>
+                    <TextBlock Text="Exit" FontWeight="Bold" Margin="0,8,0,4"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="DimGray" Margin="0,0,0,8">
+                        Closing this window does not exit the app by default — it stays running in the tray so global hotkeys keep working.
+                        Use the button below (or the tray icon's Quit menu) to fully exit Mouse2Joy.
+                    </TextBlock>
+                    <Button Content="Quit Mouse2Joy" Width="180" HorizontalAlignment="Left"
+                            Padding="8,4" Click="OnQuitApp"/>
+
+                    <Separator Margin="0,16,0,8"/>
+                    <TextBlock Text="User data" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="DimGray" Margin="0,0,0,8">
+                        Profiles, settings, and logs live under %APPDATA%\Mouse2Joy\.
+                    </TextBlock>
+                    <Button Content="Open app data folder" Width="180" HorizontalAlignment="Left"
+                            Padding="8,4" Click="OnOpenAppDataFolder"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Setup -->
+            <TabItem Header="Setup">
+                <StackPanel Margin="12">
+                    <TextBlock x:Name="VigemStatusTb" Text="ViGEmBus: ?" Margin="0,4"/>
+                    <TextBlock x:Name="InterceptionStatusTb" Text="Interception: ?" Margin="0,4"/>
+                    <TextBlock x:Name="AdminStatusTb" Text="Admin: ?" Margin="0,4"/>
+                    <TextBlock x:Name="InterceptionHintTb" TextWrapping="Wrap" Margin="0,4"
+                               Foreground="#A05000" Visibility="Collapsed"/>
+                    <StackPanel x:Name="DllMissingPanel" Visibility="Collapsed">
+                        <Separator Margin="0,8"/>
+                        <TextBlock Text="Fix interception.dll" FontWeight="Bold" Margin="0,8,0,4"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                            <TextBlock x:Name="ExePathTb" Text="" Foreground="DimGray" VerticalAlignment="Center"/>
+                            <Button Content="Open app folder" Margin="8,0,0,0" Padding="8,4" Click="OnOpenAppFolder"/>
+                        </StackPanel>
+                        <Button Content="Re-check" Width="100" HorizontalAlignment="Left" Padding="8,4" Margin="0,8,0,0" Click="OnRecheck"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8">
+                        <Button Content="Open ViGEmBus releases" Width="180" Margin="0,0,8,0" Click="OnOpenVigem"/>
+                        <Button Content="Open Interception releases" Width="200" Click="OnOpenInterception"/>
+                    </StackPanel>
+                    <TextBlock TextWrapping="Wrap" Margin="0,8" Foreground="DimGray">
+                        Mouse2Joy needs the ViGEmBus driver (for the virtual Xbox 360 pad) and the Interception driver (for capturing mouse + keyboard input).
+                        Both are kernel drivers and must be installed once with administrator rights. Interception requires a reboot after install.
+                    </TextBlock>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

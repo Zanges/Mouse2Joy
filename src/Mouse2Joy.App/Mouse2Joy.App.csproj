@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Mouse2Joy</AssemblyName>
+    <RootNamespace>Mouse2Joy.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon></ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mouse2Joy.Engine\Mouse2Joy.Engine.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.Input\Mouse2Joy.Input.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.VirtualPad\Mouse2Joy.VirtualPad.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.Persistence\Mouse2Joy.Persistence.csproj" />
+    <ProjectReference Include="..\Mouse2Joy.UI\Mouse2Joy.UI.csproj" />
+  </ItemGroup>
+
+  <!--
+    Copy interception.dll (the user-mode shared library from oblitum/Interception)
+    next to the built exe so P/Invoke can find it. The repo does not commit the
+    binary; see native/README.md. Build still succeeds when the file is absent —
+    DriverHealth will then report DllNotFound and the Setup tab guides the user.
+  -->
+  <ItemGroup Condition="Exists('native\x64\interception.dll')">
+    <None Include="native\x64\interception.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>interception.dll</Link>
+    </None>
+  </ItemGroup>
+</Project>

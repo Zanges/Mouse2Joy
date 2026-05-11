@@ -24,6 +24,7 @@ public static class ModifierCatalog
         new("Inner Deadzone",                () => InnerDeadzoneModifier.Default),
         new("Outer Saturation",              () => OuterSaturationModifier.Default),
         new("Response Curve",                () => ResponseCurveModifier.Default),
+        new("Segmented Response Curve",      () => SegmentedResponseCurveModifier.Default),
         new("Invert",                        () => new InvertModifier()),
         new("Ramp Up",                       () => RampUpModifier.Default),
         new("Ramp Down",                     () => RampDownModifier.Default),

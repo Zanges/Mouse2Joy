@@ -21,6 +21,7 @@ namespace Mouse2Joy.Persistence.Models;
 [JsonDerivedType(typeof(InnerDeadzoneModifier), "innerDeadzone")]
 [JsonDerivedType(typeof(OuterSaturationModifier), "outerSaturation")]
 [JsonDerivedType(typeof(ResponseCurveModifier), "responseCurve")]
+[JsonDerivedType(typeof(SegmentedResponseCurveModifier), "segmentedResponseCurve")]
 [JsonDerivedType(typeof(InvertModifier), "invert")]
 [JsonDerivedType(typeof(RampUpModifier), "rampUp")]
 [JsonDerivedType(typeof(RampDownModifier), "rampDown")]
@@ -132,6 +133,49 @@ public sealed record OuterSaturationModifier(double Threshold) : Modifier
 public sealed record ResponseCurveModifier(double Exponent) : Modifier
 {
     public static ResponseCurveModifier Default => new(1.0);
+}
+
+/// <summary>Which side of the threshold gets the curve applied.</summary>
+public enum SegmentedCurveRegion
+{
+    /// <summary>Below the threshold is linear passthrough; above the threshold is curved.</summary>
+    AboveThreshold,
+
+    /// <summary>Below the threshold is curved; above the threshold is linear passthrough.</summary>
+    BelowThreshold
+}
+
+/// <summary>
+/// Applies a power curve to only one segment of |x|, with the other segment
+/// passing through linearly. Sign-preserving. The curved segment is remapped
+/// to its own [0, 1] sub-range so the two segments meet continuously at the
+/// threshold (no jump in output).
+///
+/// <para>Region = AboveThreshold (default): |x| in [0, t] is linear; |x| in
+/// (t, 1] is curved. Useful for keeping fine, low-deflection input precise
+/// while making the upper range more aggressive.</para>
+///
+/// <para>Region = BelowThreshold: |x| in [0, t) is curved; |x| in [t, 1] is
+/// linear. Useful for a soft start before a fully linear upper range.</para>
+///
+/// <para>Math (AboveThreshold): for a = |x|, t = Threshold, n = Exponent:
+/// out = a when a ≤ t; out = t + ((a - t) / (1 - t))^n * (1 - t) when a &gt; t.</para>
+///
+/// <para>Guards: Exponent &lt;= 0 collapses to 1.0 (identity, matching
+/// ResponseCurveModifier); the evaluator additionally clamps Threshold
+/// strictly inside (0, 1) to avoid division-by-zero at the segment boundary.
+/// The stored value round-trips unchanged.</para>
+/// </summary>
+/// <param name="Threshold">Fraction of |input| where the linear and curved segments meet, in [0, 1].</param>
+/// <param name="Exponent">Curve exponent applied inside the curved segment after remap. &lt; 1 boosts; &gt; 1 attenuates.</param>
+/// <param name="Region">Which segment is curved.</param>
+public sealed record SegmentedResponseCurveModifier(
+    double Threshold,
+    double Exponent,
+    SegmentedCurveRegion Region) : Modifier
+{
+    public static SegmentedResponseCurveModifier Default
+        => new(0.3, 2.0, SegmentedCurveRegion.AboveThreshold);
 }
 
 /// <summary>Negates the Scalar signal: x → -x.</summary>

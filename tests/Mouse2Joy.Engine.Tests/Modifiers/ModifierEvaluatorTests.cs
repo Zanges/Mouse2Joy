@@ -122,6 +122,175 @@ public class ResponseCurveEvaluatorTests
     }
 }
 
+public class SegmentedResponseCurveEvaluatorTests
+{
+    private static SegmentedResponseCurveEvaluator Above(double threshold, double exponent) =>
+        new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.AboveThreshold));
+
+    private static SegmentedResponseCurveEvaluator Below(double threshold, double exponent) =>
+        new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.BelowThreshold));
+
+    [Fact]
+    public void Above_linear_segment_passes_through_unchanged()
+    {
+        var e = Above(threshold: 0.3, exponent: 2.0);
+        // Inputs at or below threshold are linear passthrough.
+        e.Evaluate(Signal.Scalar(0.0), 0.01).ScalarValue.Should().BeApproximately(0.0, 1e-9);
+        e.Evaluate(Signal.Scalar(0.1), 0.01).ScalarValue.Should().BeApproximately(0.1, 1e-9);
+        e.Evaluate(Signal.Scalar(0.3), 0.01).ScalarValue.Should().BeApproximately(0.3, 1e-9);
+    }
+
+    [Fact]
+    public void Above_curved_segment_applies_remapped_power()
+    {
+        var e = Above(threshold: 0.3, exponent: 2.0);
+        // a = 0.65, t = 0.3 → u = (0.65 - 0.3) / 0.7 = 0.5; v = 0.25; out = 0.3 + 0.25*0.7 = 0.475.
+        e.Evaluate(Signal.Scalar(0.65), 0.01).ScalarValue.Should().BeApproximately(0.475, 1e-9);
+    }
+
+    [Fact]
+    public void Above_is_continuous_at_threshold()
+    {
+        // The whole point of segment remap: linear and curved segments meet
+        // cleanly. Output at a = t should equal t exactly, not jump.
+        var e = Above(threshold: 0.3, exponent: 4.0);
+        e.Evaluate(Signal.Scalar(0.3), 0.01).ScalarValue.Should().BeApproximately(0.3, 1e-9);
+        // Just above: still effectively continuous (small u → small v).
+        e.Evaluate(Signal.Scalar(0.30001), 0.01).ScalarValue.Should().BeApproximately(0.3, 1e-4);
+    }
+
+    [Fact]
+    public void Above_preserves_endpoint_at_one()
+    {
+        // Full deflection must survive any curve shape so the user can still hit ±1.
+        Above(0.3, 2.0).Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        Above(0.5, 4.0).Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        Above(0.1, 0.5).Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void Below_linear_segment_passes_through_unchanged()
+    {
+        var e = Below(threshold: 0.3, exponent: 2.0);
+        // Inputs at or above threshold are linear passthrough.
+        e.Evaluate(Signal.Scalar(0.3), 0.01).ScalarValue.Should().BeApproximately(0.3, 1e-9);
+        e.Evaluate(Signal.Scalar(0.7), 0.01).ScalarValue.Should().BeApproximately(0.7, 1e-9);
+        e.Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void Below_curved_segment_applies_remapped_power()
+    {
+        var e = Below(threshold: 0.4, exponent: 2.0);
+        // a = 0.2, t = 0.4 → u = 0.2/0.4 = 0.5; v = 0.25; out = 0.25 * 0.4 = 0.1.
+        e.Evaluate(Signal.Scalar(0.2), 0.01).ScalarValue.Should().BeApproximately(0.1, 1e-9);
+    }
+
+    [Fact]
+    public void Below_is_continuous_at_threshold()
+    {
+        var e = Below(threshold: 0.4, exponent: 4.0);
+        // At a = t: u = 1, v = 1, out = t — meets the linear segment cleanly.
+        e.Evaluate(Signal.Scalar(0.4), 0.01).ScalarValue.Should().BeApproximately(0.4, 1e-9);
+        e.Evaluate(Signal.Scalar(0.39999), 0.01).ScalarValue.Should().BeApproximately(0.4, 1e-4);
+    }
+
+    [Fact]
+    public void Below_zero_in_zero_out()
+    {
+        Below(0.3, 2.0).Evaluate(Signal.Scalar(0.0), 0.01).ScalarValue.Should().BeApproximately(0.0, 1e-9);
+    }
+
+    [Fact]
+    public void Sign_preserved_in_both_regions()
+    {
+        var above = Above(threshold: 0.3, exponent: 2.0);
+        above.Evaluate(Signal.Scalar(-0.65), 0.01).ScalarValue.Should().BeApproximately(-0.475, 1e-9);
+        above.Evaluate(Signal.Scalar(-0.1), 0.01).ScalarValue.Should().BeApproximately(-0.1, 1e-9);
+
+        var below = Below(threshold: 0.4, exponent: 2.0);
+        below.Evaluate(Signal.Scalar(-0.2), 0.01).ScalarValue.Should().BeApproximately(-0.1, 1e-9);
+        below.Evaluate(Signal.Scalar(-0.7), 0.01).ScalarValue.Should().BeApproximately(-0.7, 1e-9);
+    }
+
+    [Fact]
+    public void Nan_input_yields_zero_scalar()
+    {
+        Above(0.3, 2.0).Evaluate(Signal.Scalar(double.NaN), 0.01).ScalarValue.Should().Be(0.0);
+        Below(0.3, 2.0).Evaluate(Signal.Scalar(double.NaN), 0.01).ScalarValue.Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Nonpositive_exponent_collapses_to_identity()
+    {
+        // Same guard as ResponseCurveEvaluator: exponent <= 0 → n = 1.
+        // In Above mode this means linear-then-linear → full passthrough.
+        var above = Above(threshold: 0.3, exponent: 0.0);
+        above.Evaluate(Signal.Scalar(0.5), 0.01).ScalarValue.Should().BeApproximately(0.5, 1e-9);
+        above.Evaluate(Signal.Scalar(0.9), 0.01).ScalarValue.Should().BeApproximately(0.9, 1e-9);
+
+        var below = Below(threshold: 0.4, exponent: -1.0);
+        below.Evaluate(Signal.Scalar(0.2), 0.01).ScalarValue.Should().BeApproximately(0.2, 1e-9);
+    }
+
+    [Fact]
+    public void Inputs_clamped_to_unit_magnitude()
+    {
+        // |x| > 1 must clamp to 1 before the segment math, otherwise the
+        // upper-segment remap u = (a - t)/(1 - t) could exceed 1 and produce
+        // out-of-range output.
+        Above(0.3, 2.0).Evaluate(Signal.Scalar(1.5), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        Above(0.3, 2.0).Evaluate(Signal.Scalar(-1.5), 0.01).ScalarValue.Should().BeApproximately(-1.0, 1e-9);
+    }
+
+    [Fact]
+    public void Threshold_near_zero_does_not_produce_nan_or_inf()
+    {
+        // The evaluator's defensive clamp (Threshold ∈ [1e-6, 1-1e-6]) must
+        // keep the segment remap finite even when the user stores 0.0.
+        var above = Above(threshold: 0.0, exponent: 2.0);
+        var outVal = above.Evaluate(Signal.Scalar(0.5), 0.01).ScalarValue;
+        outVal.Should().NotBe(double.NaN);
+        double.IsFinite(outVal).Should().BeTrue();
+
+        var below = Below(threshold: 0.0, exponent: 2.0);
+        var outVal2 = below.Evaluate(Signal.Scalar(0.5), 0.01).ScalarValue;
+        double.IsFinite(outVal2).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Threshold_near_one_does_not_produce_nan_or_inf()
+    {
+        var above = Above(threshold: 1.0, exponent: 2.0);
+        var outVal = above.Evaluate(Signal.Scalar(0.9999), 0.01).ScalarValue;
+        double.IsFinite(outVal).Should().BeTrue();
+        // Almost-all-linear range: output very close to input.
+        outVal.Should().BeApproximately(0.9999, 1e-3);
+
+        var below = Below(threshold: 1.0, exponent: 2.0);
+        var outVal2 = below.Evaluate(Signal.Scalar(0.5), 0.01).ScalarValue;
+        double.IsFinite(outVal2).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Reset_is_a_noop_because_evaluator_is_stateless()
+    {
+        var e = Above(0.3, 2.0);
+        e.Evaluate(Signal.Scalar(0.65), 0.01).ScalarValue.Should().BeApproximately(0.475, 1e-9);
+        e.Reset();
+        // Same input → same output; no state carried.
+        e.Evaluate(Signal.Scalar(0.65), 0.01).ScalarValue.Should().BeApproximately(0.475, 1e-9);
+    }
+
+    [Fact]
+    public void Config_property_exposes_underlying_modifier()
+    {
+        var mod = new SegmentedResponseCurveModifier(0.3, 2.0, SegmentedCurveRegion.AboveThreshold);
+        var e = new SegmentedResponseCurveEvaluator(mod);
+        e.Config.Should().BeSameAs(mod);
+    }
+}
+
 public class InvertEvaluatorTests
 {
     [Fact]

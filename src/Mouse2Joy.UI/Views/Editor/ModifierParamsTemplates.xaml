@@ -114,6 +114,40 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- Segmented Response Curve -->
+    <DataTemplate DataType="{x:Type vm:SegmentedResponseCurveProxy}">
+        <StackPanel>
+            <TextBlock Text="Region (which segment is curved)"/>
+            <ComboBox SelectedValue="{Binding Region, Mode=TwoWay}" SelectedValuePath="Tag" Width="220" HorizontalAlignment="Left" Margin="0,0,0,8">
+                <ComboBoxItem Content="Above threshold (linear → curved)" Tag="{x:Static m:SegmentedCurveRegion.AboveThreshold}"/>
+                <ComboBoxItem Content="Below threshold (curved → linear)" Tag="{x:Static m:SegmentedCurveRegion.BelowThreshold}"/>
+            </ComboBox>
+
+            <TextBlock Text="Threshold (|input| where linear and curved segments meet)"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                </Grid.ColumnDefinitions>
+                <Slider Grid.Column="0" Minimum="0.05" Maximum="0.95" SmallChange="0.01" Value="{Binding Threshold, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Text="{Binding Threshold, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
+            </Grid>
+
+            <TextBlock Text="Exponent (applied inside the curved segment)" Margin="0,8,0,0"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                </Grid.ColumnDefinitions>
+                <Slider Grid.Column="0" Minimum="0.25" Maximum="4" SmallChange="0.05" Value="{Binding Exponent, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Text="{Binding Exponent, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
+            </Grid>
+
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7"
+                       Text="The curved segment is remapped to its own [0, 1] range, so output is continuous at the threshold. Exponent &lt; 1 boosts (concave); &gt; 1 attenuates (convex). The non-curved segment is linear passthrough."/>
+        </StackPanel>
+    </DataTemplate>
+
     <!-- Ramp Up -->
     <DataTemplate DataType="{x:Type vm:RampUpProxy}">
         <StackPanel>

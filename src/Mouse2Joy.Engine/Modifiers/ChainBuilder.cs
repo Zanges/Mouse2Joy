@@ -23,6 +23,7 @@ public static class ChainBuilder
         InnerDeadzoneModifier id => new InnerDeadzoneEvaluator(id),
         OuterSaturationModifier os => new OuterSaturationEvaluator(os),
         ResponseCurveModifier rc => new ResponseCurveEvaluator(rc),
+        SegmentedResponseCurveModifier src => new SegmentedResponseCurveEvaluator(src),
         InvertModifier i => new InvertEvaluator(i),
         RampUpModifier ru => new RampUpEvaluator(ru),
         RampDownModifier rd => new RampDownEvaluator(rd),

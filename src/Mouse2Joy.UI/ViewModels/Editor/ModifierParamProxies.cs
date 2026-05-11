@@ -155,6 +155,30 @@ public sealed class ResponseCurveProxy : ModifierParamProxy
     }
 }
 
+public sealed class SegmentedResponseCurveProxy : ModifierParamProxy
+{
+    public SegmentedResponseCurveProxy(ModifierCardViewModel card) : base(card) { }
+    private SegmentedResponseCurveModifier Mod => (SegmentedResponseCurveModifier)Card.Modifier;
+
+    public double Threshold
+    {
+        get => Mod.Threshold;
+        set { if (Mod.Threshold != value) { Card.Update(Mod with { Threshold = value }); OnChanged(); } }
+    }
+
+    public double Exponent
+    {
+        get => Mod.Exponent;
+        set { if (Mod.Exponent != value) { Card.Update(Mod with { Exponent = value }); OnChanged(); } }
+    }
+
+    public SegmentedCurveRegion Region
+    {
+        get => Mod.Region;
+        set { if (Mod.Region != value) { Card.Update(Mod with { Region = value }); OnChanged(); } }
+    }
+}
+
 public sealed class RampUpProxy : ModifierParamProxy
 {
     public RampUpProxy(ModifierCardViewModel card) : base(card) { }

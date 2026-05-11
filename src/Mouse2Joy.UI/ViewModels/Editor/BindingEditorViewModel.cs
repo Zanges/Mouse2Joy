@@ -143,6 +143,7 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
         InnerDeadzoneModifier => new InnerDeadzoneProxy(card),
         OuterSaturationModifier => new OuterSaturationProxy(card),
         ResponseCurveModifier => new ResponseCurveProxy(card),
+        SegmentedResponseCurveModifier => new SegmentedResponseCurveProxy(card),
         RampUpModifier => new RampUpProxy(card),
         RampDownModifier => new RampDownProxy(card),
         LimiterModifier => new LimiterProxy(card),

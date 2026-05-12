@@ -16,14 +16,17 @@ public static class ChainBuilder
 
     public static IModifierEvaluator BuildEvaluator(Modifier modifier) => modifier switch
     {
+        DeltaScaleModifier ds => new DeltaScaleEvaluator(ds),
         StickDynamicsModifier sd => new StickDynamicsEvaluator(sd),
         DigitalToScalarModifier d2s => new DigitalToScalarEvaluator(d2s),
         ScalarToDigitalThresholdModifier s2d => new ScalarToDigitalThresholdEvaluator(s2d),
-        SensitivityModifier s => new SensitivityEvaluator(s),
+        OutputScaleModifier os => new OutputScaleEvaluator(os),
         InnerDeadzoneModifier id => new InnerDeadzoneEvaluator(id),
         OuterSaturationModifier os => new OuterSaturationEvaluator(os),
         ResponseCurveModifier rc => new ResponseCurveEvaluator(rc),
         SegmentedResponseCurveModifier src => new SegmentedResponseCurveEvaluator(src),
+        ParametricCurveModifier pc => new ParametricCurveEvaluator(pc),
+        CurveEditorModifier ce => new ParametricCurveEvaluator(ce),
         InvertModifier i => new InvertEvaluator(i),
         RampUpModifier ru => new RampUpEvaluator(ru),
         RampDownModifier rd => new RampDownEvaluator(rd),

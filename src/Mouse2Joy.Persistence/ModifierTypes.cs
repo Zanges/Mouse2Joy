@@ -37,14 +37,17 @@ public static class ModifierTypes
     /// </summary>
     public static (SignalType In, SignalType Out) GetIO(Modifier modifier) => modifier switch
     {
+        DeltaScaleModifier => (SignalType.Delta, SignalType.Delta),
         StickDynamicsModifier => (SignalType.Delta, SignalType.Scalar),
         DigitalToScalarModifier => (SignalType.Digital, SignalType.Scalar),
         ScalarToDigitalThresholdModifier => (SignalType.Scalar, SignalType.Digital),
-        SensitivityModifier => (SignalType.Scalar, SignalType.Scalar),
+        OutputScaleModifier => (SignalType.Scalar, SignalType.Scalar),
         InnerDeadzoneModifier => (SignalType.Scalar, SignalType.Scalar),
         OuterSaturationModifier => (SignalType.Scalar, SignalType.Scalar),
         ResponseCurveModifier => (SignalType.Scalar, SignalType.Scalar),
         SegmentedResponseCurveModifier => (SignalType.Scalar, SignalType.Scalar),
+        ParametricCurveModifier => (SignalType.Scalar, SignalType.Scalar),
+        CurveEditorModifier => (SignalType.Scalar, SignalType.Scalar),
         InvertModifier => (SignalType.Scalar, SignalType.Scalar),
         RampUpModifier => (SignalType.Scalar, SignalType.Scalar),
         RampDownModifier => (SignalType.Scalar, SignalType.Scalar),
@@ -62,14 +65,17 @@ public static class ModifierTypes
     /// <summary>Human-friendly display name for a modifier kind. Used by the editor catalog and chain list.</summary>
     public static string GetDisplayName(Modifier modifier) => modifier switch
     {
+        DeltaScaleModifier => "Delta Scale",
         StickDynamicsModifier sd => $"Stick Dynamics ({sd.Mode})",
         DigitalToScalarModifier => "Digital → Scalar",
         ScalarToDigitalThresholdModifier => "Threshold (Scalar → Digital)",
-        SensitivityModifier => "Sensitivity",
+        OutputScaleModifier => "Output Scale",
         InnerDeadzoneModifier => "Inner Deadzone",
         OuterSaturationModifier => "Outer Saturation",
         ResponseCurveModifier => "Response Curve",
-        SegmentedResponseCurveModifier srk => $"Segmented Response Curve ({srk.Region})",
+        SegmentedResponseCurveModifier srk => $"Segmented Response Curve ({srk.Region}, {srk.Shape}, {srk.TransitionStyle})",
+        ParametricCurveModifier pc => $"Parametric Curve ({(pc.Symmetric ? "Symmetric" : "Asymmetric")}, {pc.Points.Count} pts)",
+        CurveEditorModifier ce => $"Curve Editor ({(ce.Symmetric ? "Symmetric" : "Asymmetric")}, {ce.Points.Count} pts)",
         InvertModifier => "Invert",
         RampUpModifier => "Ramp Up",
         RampDownModifier => "Ramp Down",

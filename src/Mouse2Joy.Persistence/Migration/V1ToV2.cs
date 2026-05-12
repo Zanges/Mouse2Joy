@@ -21,10 +21,13 @@ namespace Mouse2Joy.Persistence.Migration;
 ///   <item>Digital source + Digital target (button / dpad): no converter.
 ///         The v1 Curve fields are ignored for these targets so they
 ///         migrate to nothing.</item>
-///   <item>Append shape modifiers (Sensitivity, InnerDeadzone,
+///   <item>Append shape modifiers (OutputScale, InnerDeadzone,
 ///         OuterSaturation, ResponseCurve) only when they differ from
 ///         identity. Order matches the v1 CurveEvaluator so curves stay
-///         numerically identical: Sensitivity → Inner → Outer → Response.</item>
+///         numerically identical: OutputScale → Inner → Outer → Response.
+///         (Originally emitted SensitivityModifier; renamed to OutputScale
+///         in v3. V1ToV2 emits the current type directly so the V2ToV3 step
+///         is a no-op for v1-sourced profiles.)</item>
 /// </list>
 /// </summary>
 internal static class V1ToV2
@@ -68,7 +71,7 @@ internal static class V1ToV2
         {
             var c = lb.Curve;
             if (c.Sensitivity != 1.0)
-                modifiers.Add(new SensitivityModifier(c.Sensitivity));
+                modifiers.Add(new OutputScaleModifier(c.Sensitivity));
             if (c.InnerDeadzone > 0)
                 modifiers.Add(new InnerDeadzoneModifier(c.InnerDeadzone));
             if (c.OuterSaturation > 0)

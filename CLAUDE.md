@@ -72,7 +72,7 @@ Build settings (from [Directory.Build.props](Directory.Build.props)): nullable e
 - **`interception.dll` is vendored** at [src/Mouse2Joy.App/native/x64/interception.dll](src/Mouse2Joy.App/native/x64/interception.dll) and its SHA256 is pinned alongside it. If you replace it, update the `.sha256` file. The kernel driver itself is installed by the user (`install-interception.exe /install` + reboot); don't try to bundle that.
 - **Engine capture is always-on; emulation is the toggle.** `StartCapture()` runs for app lifetime; `EnableEmulation()` / `DisableEmulation()` flip between `Off` / `Active` / `SoftMuted`. This is what lets the toggle and panic hotkeys work as a safety net before any profile is active — don't "optimize" by stopping capture when emulation is off.
 - **The panic hotkey (`Ctrl+Shift+F12`) is registered via Win32 `RegisterHotKey` on a hidden message-only window in `App`**, deliberately independent of Interception and the engine. It must survive an engine crash. Don't route it through the normal hotkey matcher.
-- **Persistence schema is versioned** (`schemaVersion: 1`). Any change to the JSON shape needs a migration, not a silent break.
+- **Persistence schema is versioned.** Any change to the JSON shape needs a migration registered in [src/Mouse2Joy.Persistence/Migration/](src/Mouse2Joy.Persistence/Migration/), not a silent break. The current version is tracked in `Profile.CurrentSchemaVersion` (constant) — that's the source of truth. See [ai-docs/MIGRATION_CONVENTIONS.md](ai-docs/MIGRATION_CONVENTIONS.md) for the patterns (JSON-node rewrite vs. typed-record rebuild) and rules.
 
 ## UI conventions
 

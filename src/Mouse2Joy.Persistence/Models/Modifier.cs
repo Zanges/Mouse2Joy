@@ -14,14 +14,17 @@ namespace Mouse2Joy.Persistence.Models;
 /// engine's "preserve state when chain unchanged" cache eviction.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
+[JsonDerivedType(typeof(DeltaScaleModifier), "deltaScale")]
 [JsonDerivedType(typeof(StickDynamicsModifier), "stickDynamics")]
 [JsonDerivedType(typeof(DigitalToScalarModifier), "digitalToScalar")]
 [JsonDerivedType(typeof(ScalarToDigitalThresholdModifier), "scalarToDigitalThreshold")]
-[JsonDerivedType(typeof(SensitivityModifier), "sensitivity")]
+[JsonDerivedType(typeof(OutputScaleModifier), "outputScale")]
 [JsonDerivedType(typeof(InnerDeadzoneModifier), "innerDeadzone")]
 [JsonDerivedType(typeof(OuterSaturationModifier), "outerSaturation")]
 [JsonDerivedType(typeof(ResponseCurveModifier), "responseCurve")]
 [JsonDerivedType(typeof(SegmentedResponseCurveModifier), "segmentedResponseCurve")]
+[JsonDerivedType(typeof(ParametricCurveModifier), "parametricCurve")]
+[JsonDerivedType(typeof(CurveEditorModifier), "curveEditor")]
 [JsonDerivedType(typeof(InvertModifier), "invert")]
 [JsonDerivedType(typeof(RampUpModifier), "rampUp")]
 [JsonDerivedType(typeof(RampDownModifier), "rampDown")]
@@ -41,6 +44,28 @@ public abstract record Modifier
     /// turn a previously valid chain invalid.
     /// </summary>
     public bool Enabled { get; init; } = true;
+}
+
+/// <summary>
+/// Multiplies the Delta signal by Factor before integration. Use this to
+/// control "how much mouse motion is needed to fill the stick" — Factor &lt; 1
+/// requires more motion (less sensitive), Factor &gt; 1 requires less motion
+/// (more sensitive). Full deflection is still reachable in either case
+/// because <see cref="StickDynamicsModifier"/>'s internal clamp at ±1 takes
+/// over once enough motion accumulates.
+///
+/// <para>Contrast with <see cref="OutputScaleModifier"/> which acts after the
+/// integrator and caps maximum output: those are different operations and
+/// live at different chain positions (Delta-side vs Scalar-side).</para>
+///
+/// <para>Factor is clamped to ≥ 0 in the evaluator (the stored value round-
+/// trips unchanged). Negative factors (input inversion) are out of scope —
+/// use a dedicated invert modifier if added later.</para>
+/// </summary>
+/// <param name="Factor">Multiplier for the Delta signal; ≥ 0. Default 1.0 (passthrough).</param>
+public sealed record DeltaScaleModifier(double Factor) : Modifier
+{
+    public static DeltaScaleModifier Default => new(1.0);
 }
 
 /// <summary>The Velocity / Accumulator / Persistent modes for the StickDynamics modifier.</summary>
@@ -100,11 +125,16 @@ public sealed record ScalarToDigitalThresholdModifier(double Threshold) : Modifi
 }
 
 /// <summary>
-/// Multiplies the Scalar signal by Multiplier, then clamps to [-1, 1].
+/// Multiplies the Scalar signal by Factor, then clamps to [-1, 1]. Acts on
+/// the post-integrator signal — useful as an output cap / governor (e.g.
+/// "walking speed never exceeds 60% stick deflection"). For "make the stick
+/// require more mouse motion but still reach full deflection," use
+/// <see cref="DeltaScaleModifier"/> instead, which acts on the Delta signal
+/// before integration.
 /// </summary>
-public sealed record SensitivityModifier(double Multiplier) : Modifier
+public sealed record OutputScaleModifier(double Factor) : Modifier
 {
-    public static SensitivityModifier Default => new(1.0);
+    public static OutputScaleModifier Default => new(1.0);
 }
 
 /// <summary>
@@ -145,6 +175,82 @@ public enum SegmentedCurveRegion
     BelowThreshold
 }
 
+/// <summary>How the linear and curved segments connect at the threshold.</summary>
+public enum SegmentedCurveTransitionStyle
+{
+    /// <summary>
+    /// Output is continuous at the threshold but slope is discontinuous —
+    /// produces a visible "kink." The original Segmented Response Curve
+    /// behavior (preserved as an option). Use when the sharp inflection point
+    /// is desired or for backward compatibility with profiles authored
+    /// before smooth styles existed.
+    /// </summary>
+    Hard,
+
+    /// <summary>
+    /// Smoothstep blend (3u² − 2u³) between the linear formula and the
+    /// power-curve formula. Smooth on both ends of the curved segment
+    /// (matched derivatives at both join points). Preserves the existing
+    /// meaning of Exponent as a power exponent of the underlying curve.
+    /// </summary>
+    SmoothStep,
+
+    /// <summary>
+    /// Cubic Hermite spline tangent to the linear segment at the threshold
+    /// and reaching ±1 at full deflection with the requested terminal slope.
+    /// C¹ smooth at the threshold by construction, but cubic constraints
+    /// force the curve to *dip below* (convex) or *bulge above* (concave)
+    /// the linear chord when terminal slope differs from chord slope. See
+    /// <see cref="QuinticSmooth"/> for the no-dip/no-bulge alternative.
+    /// </summary>
+    HermiteSpline,
+
+    /// <summary>
+    /// Quintic Hermite spline with curvature matched to zero at both ends
+    /// (C² smooth at the threshold and at full deflection). The curvature
+    /// constraint eliminates the dip/bulge present in
+    /// <see cref="HermiteSpline"/> — the curve is locally tangent AND
+    /// flat-curvature with the linear segment at the join, so it cannot
+    /// curl below/above the chord near the threshold. Exponent maps to
+    /// terminal slope at full deflection (same as HermiteSpline). This is
+    /// the recommended smooth style.
+    /// </summary>
+    QuinticSmooth,
+
+    /// <summary>
+    /// Additive power-curve form: <c>out = t + (u + (n−1)·u²) · L / n</c>
+    /// for above-threshold convex. Simpler formula, no dip/bulge by
+    /// construction (the added quadratic term is monotonically positive
+    /// for convex). Has a small documented slope mismatch at the threshold
+    /// from renormalization: linear-side slope is 1, curved-side slope is
+    /// 1/Exponent. Acceptable trade-off for users who want a simpler
+    /// mental model than the Hermite splines.
+    /// </summary>
+    PowerCurve
+}
+
+/// <summary>
+/// Whether the curved segment accelerates away from the linear segment
+/// (convex) or decelerates approaching the extreme (concave).
+/// </summary>
+public enum SegmentedCurveShape
+{
+    /// <summary>
+    /// Curve accelerates away from the linear segment — gentle near the
+    /// threshold, steep at the extreme. The "exponential" feel: tiny
+    /// inputs near the threshold barely move; large inputs ramp up fast.
+    /// </summary>
+    Convex,
+
+    /// <summary>
+    /// Curve decelerates approaching the extreme — steep near the
+    /// threshold, gentle at the extreme. The "logarithmic" feel: tiny
+    /// inputs immediately produce noticeable output; large inputs
+    /// flatten out approaching full deflection.
+    /// </summary>
+    Concave
+}
+
 /// <summary>
 /// Applies a power curve to only one segment of |x|, with the other segment
 /// passing through linearly. Sign-preserving. The curved segment is remapped
@@ -167,15 +273,187 @@ public enum SegmentedCurveRegion
 /// The stored value round-trips unchanged.</para>
 /// </summary>
 /// <param name="Threshold">Fraction of |input| where the linear and curved segments meet, in [0, 1].</param>
-/// <param name="Exponent">Curve exponent applied inside the curved segment after remap. &lt; 1 boosts; &gt; 1 attenuates.</param>
+/// <param name="Exponent">
+/// Curve aggressiveness inside the curved segment. Meaning depends on
+/// <paramref name="TransitionStyle"/>:
+/// <list type="bullet">
+///   <item><see cref="SegmentedCurveTransitionStyle.Hard"/> and
+///   <see cref="SegmentedCurveTransitionStyle.SmoothStep"/>: power exponent
+///   of the underlying curve (<c>u^Exponent</c>). &lt; 1 boosts; &gt; 1
+///   attenuates the curved segment.</item>
+///   <item><see cref="SegmentedCurveTransitionStyle.HermiteSpline"/>:
+///   terminal slope at full deflection. = 1 gives a straight line; &gt; 1
+///   gives progressively steeper acceleration toward the extremes.</item>
+/// </list>
+/// The numeric scale ends up feeling similar across styles so users don't
+/// need to recalibrate when switching.
+/// </param>
 /// <param name="Region">Which segment is curved.</param>
+/// <param name="TransitionStyle">
+/// How the linear and curved segments connect at the threshold. Defaults to
+/// <see cref="SegmentedCurveTransitionStyle.Hard"/> for backward
+/// compatibility — old JSON without this field deserializes with the
+/// original behavior. The catalog default (see <see cref="Default"/>) is
+/// <see cref="SegmentedCurveTransitionStyle.QuinticSmooth"/> so newly-added
+/// instances are smooth-and-dip-free out of the box.
+/// </param>
+/// <param name="Shape">
+/// Whether the curved segment is <see cref="SegmentedCurveShape.Convex"/>
+/// (accelerates away from the linear segment) or
+/// <see cref="SegmentedCurveShape.Concave"/> (decelerates approaching the
+/// extreme). Defaults to <c>Convex</c> for backward compatibility — old
+/// JSON without this field deserializes with the original
+/// accelerating-curve behavior across all styles.
+/// </param>
 public sealed record SegmentedResponseCurveModifier(
     double Threshold,
     double Exponent,
-    SegmentedCurveRegion Region) : Modifier
+    SegmentedCurveRegion Region,
+    SegmentedCurveTransitionStyle TransitionStyle = SegmentedCurveTransitionStyle.Hard,
+    SegmentedCurveShape Shape = SegmentedCurveShape.Convex) : Modifier
 {
+    /// <summary>
+    /// Catalog default: <see cref="SegmentedCurveTransitionStyle.QuinticSmooth"/>
+    /// (C² smooth at the threshold — no dip, no bulge by construction) plus
+    /// <see cref="SegmentedCurveShape.Convex"/>. Newly-added modifiers feel
+    /// right without the user discovering the options.
+    ///
+    /// <para>The constructor defaults for <c>TransitionStyle</c> and
+    /// <c>Shape</c> are intentionally <c>Hard</c> and <c>Convex</c> so old
+    /// JSON without those fields loads with the original behavior. This
+    /// factory only affects newly-added instances.</para>
+    /// </summary>
     public static SegmentedResponseCurveModifier Default
-        => new(0.3, 2.0, SegmentedCurveRegion.AboveThreshold);
+        => new(0.3, 2.0, SegmentedCurveRegion.AboveThreshold,
+               SegmentedCurveTransitionStyle.QuinticSmooth,
+               SegmentedCurveShape.Convex);
+}
+
+/// <summary>
+/// One control point of a <see cref="ParametricCurveModifier"/>'s response
+/// curve. <c>Y</c> is the response output for input magnitude <c>X</c> in
+/// symmetric mode, or signed input <c>X</c> in full-range mode.
+/// </summary>
+public sealed record CurvePoint(double X, double Y);
+
+/// <summary>
+/// User-defined response curve via control points. The evaluator interpolates
+/// between points with monotone cubic Hermite (Fritsch-Carlson), which
+/// guarantees C¹ smoothness AND that output is monotonic when the input
+/// data is monotonic (no "more input → less output" artifacts).
+///
+/// <para>Symmetric mode (default): the points define behavior in X ∈ [0, 1]
+/// and the negative side is computed via odd reflection — output(-x) =
+/// -output(x). Full-range mode: points span X ∈ [-1, 1] and the user can
+/// shape positive and negative input asymmetrically.</para>
+///
+/// <para>Constraint: at least 2 points required (otherwise the evaluator
+/// returns input unchanged as a defensive fallback). The UI starts with 3
+/// total points (2 endpoints + 1 interior) and lets the user add/remove
+/// interior points up to a total of 7.</para>
+/// </summary>
+public sealed record ParametricCurveModifier : Modifier, ICurveData
+{
+    public IReadOnlyList<CurvePoint> Points { get; init; } = Array.Empty<CurvePoint>();
+    public bool Symmetric { get; init; } = true;
+
+    /// <summary>
+    /// Catalog default: 3 points tracing the identity line in symmetric
+    /// mode. New instances are passthrough; user reshapes from there.
+    /// </summary>
+    public static ParametricCurveModifier Default => new()
+    {
+        Points = new[]
+        {
+            new CurvePoint(0.0, 0.0),
+            new CurvePoint(0.5, 0.5),
+            new CurvePoint(1.0, 1.0),
+        },
+        Symmetric = true,
+    };
+
+    // Records with IReadOnlyList<T> fields don't get value-equality for the
+    // list contents by default — the auto-generated Equals compares lists by
+    // reference. Override to compare by sequence so the engine's
+    // "preserve state when chain unchanged" cache eviction works correctly
+    // for this modifier just like for the others.
+    public bool Equals(ParametricCurveModifier? other)
+    {
+        if (other is null) return false;
+        if (Enabled != other.Enabled) return false;
+        if (Symmetric != other.Symmetric) return false;
+        if (Points.Count != other.Points.Count) return false;
+        for (int i = 0; i < Points.Count; i++)
+            if (Points[i] != other.Points[i]) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Enabled);
+        hash.Add(Symmetric);
+        foreach (var p in Points) hash.Add(p);
+        return hash.ToHashCode();
+    }
+}
+
+/// <summary>
+/// Sibling to <see cref="ParametricCurveModifier"/> with the same data shape
+/// (control points + symmetric flag) and identical math. The difference is
+/// purely the UI: this kind is edited via an interactive drag-the-points
+/// canvas in a popout window, while ParametricCurveModifier is edited via
+/// per-point numeric sliders.
+///
+/// <para>Both modifiers implement <see cref="ICurveData"/>; the engine's
+/// <c>ParametricCurveEvaluator</c> takes <see cref="ICurveData"/> so the
+/// math is shared with zero duplication.</para>
+///
+/// <para>The two are not auto-convertible (different JSON discriminators) —
+/// a profile saved with a canvas-edited curve stays that way on reload,
+/// preserving the user's authoring intent.</para>
+/// </summary>
+public sealed record CurveEditorModifier : Modifier, ICurveData
+{
+    public IReadOnlyList<CurvePoint> Points { get; init; } = Array.Empty<CurvePoint>();
+    public bool Symmetric { get; init; } = true;
+
+    /// <summary>
+    /// Catalog default: 3 points tracing the identity line in symmetric
+    /// mode. Same default as <see cref="ParametricCurveModifier"/> so new
+    /// instances from either catalog entry feel equivalent.
+    /// </summary>
+    public static CurveEditorModifier Default => new()
+    {
+        Points = new[]
+        {
+            new CurvePoint(0.0, 0.0),
+            new CurvePoint(0.5, 0.5),
+            new CurvePoint(1.0, 1.0),
+        },
+        Symmetric = true,
+    };
+
+    // List-field equality override — same reasoning as ParametricCurveModifier.
+    public bool Equals(CurveEditorModifier? other)
+    {
+        if (other is null) return false;
+        if (Enabled != other.Enabled) return false;
+        if (Symmetric != other.Symmetric) return false;
+        if (Points.Count != other.Points.Count) return false;
+        for (int i = 0; i < Points.Count; i++)
+            if (Points[i] != other.Points[i]) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Enabled);
+        hash.Add(Symmetric);
+        foreach (var p in Points) hash.Add(p);
+        return hash.ToHashCode();
+    }
 }
 
 /// <summary>Negates the Scalar signal: x → -x.</summary>

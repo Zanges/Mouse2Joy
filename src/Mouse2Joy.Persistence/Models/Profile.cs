@@ -2,7 +2,7 @@ namespace Mouse2Joy.Persistence.Models;
 
 public sealed record Profile
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 7;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 

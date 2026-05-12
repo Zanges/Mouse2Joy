@@ -15,16 +15,19 @@ public static class ModifierCatalog
 
     public static IReadOnlyList<Entry> AllEntries { get; } = new Entry[]
     {
+        new("Delta Scale",                   () => DeltaScaleModifier.Default),
         new("Stick Dynamics — Velocity",     () => StickDynamicsModifier.DefaultVelocity),
         new("Stick Dynamics — Accumulator",  () => StickDynamicsModifier.DefaultAccumulator),
         new("Stick Dynamics — Persistent",   () => StickDynamicsModifier.DefaultPersistent),
         new("Digital → Scalar",              () => DigitalToScalarModifier.Default),
         new("Threshold (Scalar → Digital)",  () => ScalarToDigitalThresholdModifier.Default),
-        new("Sensitivity",                   () => SensitivityModifier.Default),
+        new("Output Scale",                  () => OutputScaleModifier.Default),
         new("Inner Deadzone",                () => InnerDeadzoneModifier.Default),
         new("Outer Saturation",              () => OuterSaturationModifier.Default),
         new("Response Curve",                () => ResponseCurveModifier.Default),
         new("Segmented Response Curve",      () => SegmentedResponseCurveModifier.Default),
+        new("Parametric Curve",              () => ParametricCurveModifier.Default),
+        new("Curve Editor",                  () => CurveEditorModifier.Default),
         new("Invert",                        () => new InvertModifier()),
         new("Ramp Up",                       () => RampUpModifier.Default),
         new("Ramp Down",                     () => RampDownModifier.Default),

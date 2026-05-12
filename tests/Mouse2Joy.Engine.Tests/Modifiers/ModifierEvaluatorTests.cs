@@ -5,29 +5,129 @@ using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.Engine.Tests.Modifiers;
 
-public class SensitivityEvaluatorTests
+public class OutputScaleEvaluatorTests
 {
     [Fact]
     public void Identity_passes_through()
     {
-        var e = new SensitivityEvaluator(new SensitivityModifier(1.0));
+        var e = new OutputScaleEvaluator(new OutputScaleModifier(1.0));
         var output = e.Evaluate(Signal.Scalar(0.5), 0.01);
         output.ScalarValue.Should().Be(0.5);
     }
 
     [Fact]
-    public void Multiplier_scales_signal()
+    public void Factor_scales_signal()
     {
-        var e = new SensitivityEvaluator(new SensitivityModifier(2.0));
+        var e = new OutputScaleEvaluator(new OutputScaleModifier(2.0));
         e.Evaluate(Signal.Scalar(0.4), 0.01).ScalarValue.Should().Be(0.8);
     }
 
     [Fact]
     public void Output_clamps_to_unit_range()
     {
-        var e = new SensitivityEvaluator(new SensitivityModifier(2.0));
+        var e = new OutputScaleEvaluator(new OutputScaleModifier(2.0));
         e.Evaluate(Signal.Scalar(0.6), 0.01).ScalarValue.Should().Be(1.0);
         e.Evaluate(Signal.Scalar(-0.6), 0.01).ScalarValue.Should().Be(-1.0);
+    }
+
+    [Fact]
+    public void Factor_below_one_caps_saturated_input_below_unity()
+    {
+        // This is the governor use case: upstream signal at ±1 gets capped at ±Factor.
+        // Captures the behavior contract that motivated the rename — full deflection
+        // is intentionally unreachable from here when Factor < 1.
+        var e = new OutputScaleEvaluator(new OutputScaleModifier(0.5));
+        e.Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().Be(0.5);
+        e.Evaluate(Signal.Scalar(-1.0), 0.01).ScalarValue.Should().Be(-0.5);
+    }
+}
+
+public class DeltaScaleEvaluatorTests
+{
+    [Fact]
+    public void Identity_at_factor_one_passes_through()
+    {
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(1.0));
+        e.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(100);
+        e.Evaluate(Signal.Delta(-50), 0.01).DeltaValue.Should().Be(-50);
+        e.Evaluate(Signal.Delta(0), 0.01).DeltaValue.Should().Be(0);
+    }
+
+    [Fact]
+    public void Factor_scales_delta_proportionally()
+    {
+        var half = new DeltaScaleEvaluator(new DeltaScaleModifier(0.5));
+        half.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(50);
+        half.Evaluate(Signal.Delta(-100), 0.01).DeltaValue.Should().Be(-50);
+
+        var doubleE = new DeltaScaleEvaluator(new DeltaScaleModifier(2.0));
+        doubleE.Evaluate(Signal.Delta(50), 0.01).DeltaValue.Should().Be(100);
+    }
+
+    [Fact]
+    public void Rounding_uses_bankers_rounding_to_avoid_bias()
+    {
+        // Math.Round defaults to MidpointRounding.ToEven (banker's). This
+        // means delta=1, factor=0.5 → 0.5 → rounds to 0 (nearest even).
+        // delta=3, factor=0.5 → 1.5 → rounds to 2.
+        // Truncation would always lose the fractional part toward zero on
+        // every nonzero tick; banker's rounding keeps the long-term average
+        // unbiased so total motion is preserved over time.
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(0.5));
+        e.Evaluate(Signal.Delta(1), 0.01).DeltaValue.Should().Be(0);
+        e.Evaluate(Signal.Delta(3), 0.01).DeltaValue.Should().Be(2);
+        e.Evaluate(Signal.Delta(2), 0.01).DeltaValue.Should().Be(1);
+    }
+
+    [Fact]
+    public void Zero_factor_zeros_output()
+    {
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(0.0));
+        e.Evaluate(Signal.Delta(1000), 0.01).DeltaValue.Should().Be(0);
+        e.Evaluate(Signal.Delta(-1000), 0.01).DeltaValue.Should().Be(0);
+    }
+
+    [Fact]
+    public void Negative_factor_is_clamped_to_zero()
+    {
+        // Defensive guard: stored value can be anything (round-trip preserved),
+        // but the evaluator treats < 0 as 0 to prevent unintended inversion.
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(-1.5));
+        e.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(0);
+        e.Evaluate(Signal.Delta(-100), 0.01).DeltaValue.Should().Be(0);
+    }
+
+    [Fact]
+    public void Nan_factor_treated_as_zero()
+    {
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(double.NaN));
+        e.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(0);
+    }
+
+    [Fact]
+    public void Large_input_scales_without_overflow()
+    {
+        // Realistic upper bound: gaming mice rarely exceed a few thousand counts/tick.
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(3.0));
+        e.Evaluate(Signal.Delta(1000), 0.01).DeltaValue.Should().Be(3000);
+        e.Evaluate(Signal.Delta(-1000), 0.01).DeltaValue.Should().Be(-3000);
+    }
+
+    [Fact]
+    public void Reset_is_a_noop_because_evaluator_is_stateless()
+    {
+        var e = new DeltaScaleEvaluator(new DeltaScaleModifier(0.5));
+        e.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(50);
+        e.Reset();
+        e.Evaluate(Signal.Delta(100), 0.01).DeltaValue.Should().Be(50);
+    }
+
+    [Fact]
+    public void Config_property_exposes_underlying_modifier()
+    {
+        var mod = new DeltaScaleModifier(0.5);
+        var e = new DeltaScaleEvaluator(mod);
+        e.Config.Should().BeSameAs(mod);
     }
 }
 
@@ -124,11 +224,30 @@ public class ResponseCurveEvaluatorTests
 
 public class SegmentedResponseCurveEvaluatorTests
 {
+    // Default helpers (no style) → use the constructor default = Hard, so the
+    // pre-existing tests in this class continue to assert the original kinked
+    // math without any changes.
     private static SegmentedResponseCurveEvaluator Above(double threshold, double exponent) =>
         new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.AboveThreshold));
 
     private static SegmentedResponseCurveEvaluator Below(double threshold, double exponent) =>
         new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.BelowThreshold));
+
+    // Style-aware helpers for the new smooth-transition tests below.
+    private static SegmentedResponseCurveEvaluator AboveStyle(double threshold, double exponent, SegmentedCurveTransitionStyle style) =>
+        new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.AboveThreshold, style));
+
+    private static SegmentedResponseCurveEvaluator BelowStyle(double threshold, double exponent, SegmentedCurveTransitionStyle style) =>
+        new(new SegmentedResponseCurveModifier(threshold, exponent, SegmentedCurveRegion.BelowThreshold, style));
+
+    private static double Eval(SegmentedResponseCurveEvaluator e, double x) =>
+        e.Evaluate(Signal.Scalar(x), 0.01).ScalarValue;
+
+    private static double Slope(SegmentedResponseCurveEvaluator e, double x, double h = 1e-5)
+    {
+        // Central difference; clamped a bit away from the input domain edges.
+        return (Eval(e, x + h) - Eval(e, x - h)) / (2.0 * h);
+    }
 
     [Fact]
     public void Above_linear_segment_passes_through_unchanged()
@@ -288,6 +407,521 @@ public class SegmentedResponseCurveEvaluatorTests
         var mod = new SegmentedResponseCurveModifier(0.3, 2.0, SegmentedCurveRegion.AboveThreshold);
         var e = new SegmentedResponseCurveEvaluator(mod);
         e.Config.Should().BeSameAs(mod);
+    }
+
+    // ============================================================
+    // SmoothStep transition style
+    // ============================================================
+
+    [Fact]
+    public void SmoothStep_above_passes_through_linear_below_threshold()
+    {
+        var e = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep);
+        Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9);
+        Eval(e, 0.1).Should().BeApproximately(0.1, 1e-9);
+        Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9);
+    }
+
+    [Fact]
+    public void SmoothStep_above_preserves_endpoint_at_one()
+    {
+        AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        AboveStyle(0.5, 4.0, SegmentedCurveTransitionStyle.SmoothStep)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void SmoothStep_above_is_smooth_at_threshold()
+    {
+        // The whole point of SmoothStep: slope on both sides of the threshold
+        // should match (≈ 1, matching the linear segment's slope).
+        var e = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep);
+        var slopeBelow = Slope(e, 0.2999);
+        var slopeAbove = Slope(e, 0.3001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+    }
+
+    [Fact]
+    public void SmoothStep_below_zero_in_zero_out()
+    {
+        BelowStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep)
+            .Evaluate(Signal.Scalar(0.0), 0.01).ScalarValue.Should().BeApproximately(0.0, 1e-9);
+    }
+
+    [Fact]
+    public void SmoothStep_below_is_smooth_at_threshold()
+    {
+        var e = BelowStyle(0.4, 2.0, SegmentedCurveTransitionStyle.SmoothStep);
+        var slopeBelow = Slope(e, 0.3999);
+        var slopeAbove = Slope(e, 0.4001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+    }
+
+    [Fact]
+    public void SmoothStep_with_exponent_one_collapses_to_linear()
+    {
+        // Blend of linear and "u^1 * (1-t) + t" — both are linear formulas, so
+        // any weighted average is also linear. Output equals input everywhere.
+        var e = AboveStyle(0.3, 1.0, SegmentedCurveTransitionStyle.SmoothStep);
+        Eval(e, 0.4).Should().BeApproximately(0.4, 1e-9);
+        Eval(e, 0.7).Should().BeApproximately(0.7, 1e-9);
+        Eval(e, 1.0).Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void SmoothStep_preserves_sign_for_negative_inputs()
+    {
+        var e = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep);
+        var pos = Eval(e, 0.7);
+        var neg = Eval(e, -0.7);
+        neg.Should().BeApproximately(-pos, 1e-9);
+    }
+
+    // ============================================================
+    // HermiteSpline transition style
+    // ============================================================
+
+    [Fact]
+    public void HermiteSpline_above_passes_through_linear_below_threshold()
+    {
+        var e = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9);
+        Eval(e, 0.15).Should().BeApproximately(0.15, 1e-9);
+        Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9);
+    }
+
+    [Fact]
+    public void HermiteSpline_above_preserves_endpoint_at_one()
+    {
+        AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.HermiteSpline)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        AboveStyle(0.7, 3.5, SegmentedCurveTransitionStyle.HermiteSpline)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void HermiteSpline_above_is_smooth_at_threshold()
+    {
+        // Slope matches 1 (linear side) on both sides of the threshold.
+        var e = AboveStyle(0.3, 3.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        var slopeBelow = Slope(e, 0.2999);
+        var slopeAbove = Slope(e, 0.3001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+    }
+
+    [Fact]
+    public void HermiteSpline_above_terminal_slope_matches_exponent()
+    {
+        // Approach the endpoint x = 1 from below; slope should match Exponent.
+        var e = AboveStyle(0.3, 3.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        var s = Slope(e, 0.9999, h: 1e-6);
+        s.Should().BeApproximately(3.0, 0.05);
+    }
+
+    [Fact]
+    public void HermiteSpline_with_exponent_one_is_pure_linear()
+    {
+        // Start slope = 1, end slope = 1 → cubic collapses to a straight line.
+        var e = AboveStyle(0.3, 1.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        Eval(e, 0.4).Should().BeApproximately(0.4, 1e-9);
+        Eval(e, 0.7).Should().BeApproximately(0.7, 1e-9);
+        Eval(e, 1.0).Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void HermiteSpline_below_zero_in_zero_out()
+    {
+        BelowStyle(0.4, 2.0, SegmentedCurveTransitionStyle.HermiteSpline)
+            .Evaluate(Signal.Scalar(0.0), 0.01).ScalarValue.Should().BeApproximately(0.0, 1e-9);
+    }
+
+    [Fact]
+    public void HermiteSpline_below_is_smooth_at_threshold()
+    {
+        var e = BelowStyle(0.4, 3.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        var slopeBelow = Slope(e, 0.3999);
+        var slopeAbove = Slope(e, 0.4001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+    }
+
+    [Fact]
+    public void HermiteSpline_preserves_sign_for_negative_inputs()
+    {
+        var e = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        var pos = Eval(e, 0.7);
+        var neg = Eval(e, -0.7);
+        neg.Should().BeApproximately(-pos, 1e-9);
+    }
+
+    // ============================================================
+    // Cross-style behavior
+    // ============================================================
+
+    [Fact]
+    public void Style_dispatch_produces_different_outputs_for_same_inputs()
+    {
+        // Same Threshold/Exponent/Region, three different styles → numerically
+        // different outputs at the same input. Confirms the switch in
+        // Evaluate() routes to distinct code paths.
+        var hard = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.Hard);
+        var smooth = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.SmoothStep);
+        var hermite = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.HermiteSpline);
+        // Pick an input deep in the curved region where the three formulas
+        // diverge most visibly.
+        var a = 0.5;
+        var hardOut = Eval(hard, a);
+        var smoothOut = Eval(smooth, a);
+        var hermiteOut = Eval(hermite, a);
+        hardOut.Should().NotBe(smoothOut);
+        hardOut.Should().NotBe(hermiteOut);
+        smoothOut.Should().NotBe(hermiteOut);
+    }
+
+    [Fact]
+    public void Hard_style_via_explicit_param_matches_default_helper()
+    {
+        // Sanity check: the constructor default is Hard, so AboveStyle(.., Hard)
+        // and Above(..) should produce identical output for every input.
+        var withDefault = Above(0.3, 2.0);
+        var explicitHard = AboveStyle(0.3, 2.0, SegmentedCurveTransitionStyle.Hard);
+        foreach (var a in new[] { 0.0, 0.1, 0.29, 0.3, 0.31, 0.5, 0.9, 1.0 })
+        {
+            Eval(explicitHard, a).Should().Be(Eval(withDefault, a));
+        }
+    }
+
+    // ============================================================
+    // Shape parameter — Convex vs Concave for the existing styles
+    // ============================================================
+
+    private static SegmentedResponseCurveEvaluator AboveStyleShape(
+        double threshold, double exponent,
+        SegmentedCurveTransitionStyle style,
+        SegmentedCurveShape shape) =>
+        new(new SegmentedResponseCurveModifier(
+            threshold, exponent,
+            SegmentedCurveRegion.AboveThreshold,
+            style, shape));
+
+    private static SegmentedResponseCurveEvaluator BelowStyleShape(
+        double threshold, double exponent,
+        SegmentedCurveTransitionStyle style,
+        SegmentedCurveShape shape) =>
+        new(new SegmentedResponseCurveModifier(
+            threshold, exponent,
+            SegmentedCurveRegion.BelowThreshold,
+            style, shape));
+
+    [Fact]
+    public void Convex_above_threshold_sits_below_or_on_chord()
+    {
+        // For above-threshold convex curves (any style), output at any 'a'
+        // in (t, 1) should be ≤ the linear chord value 'a'. The chord is
+        // y = a since both endpoints lie on the diagonal.
+        var threshold = 0.3;
+        var samples = new[] { 0.35, 0.5, 0.7, 0.9 };
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
+            var e = AboveStyleShape(threshold, 2.0, style, SegmentedCurveShape.Convex);
+            foreach (var a in samples)
+            {
+                Eval(e, a).Should().BeLessThanOrEqualTo(a + 1e-9,
+                    $"style={style} convex output at a={a} should not exceed chord");
+            }
+        }
+    }
+
+    [Fact]
+    public void Concave_above_threshold_sits_above_or_on_chord()
+    {
+        // For above-threshold concave curves, output should be ≥ chord (= a).
+        var threshold = 0.3;
+        var samples = new[] { 0.35, 0.5, 0.7, 0.9 };
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
+            var e = AboveStyleShape(threshold, 2.0, style, SegmentedCurveShape.Concave);
+            foreach (var a in samples)
+            {
+                Eval(e, a).Should().BeGreaterThanOrEqualTo(a - 1e-9,
+                    $"style={style} concave output at a={a} should not fall below chord");
+            }
+        }
+    }
+
+    [Fact]
+    public void Convex_endpoint_preservation_for_all_styles()
+    {
+        // out(1) = 1 across all five styles (above-threshold, convex).
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
+            var e = AboveStyleShape(0.3, 2.0, style, SegmentedCurveShape.Convex);
+            Eval(e, 1.0).Should().BeApproximately(1.0, 1e-9,
+                $"style={style} convex must reach full deflection at a=1");
+        }
+    }
+
+    [Fact]
+    public void Concave_endpoint_preservation_for_all_styles()
+    {
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
+            var e = AboveStyleShape(0.3, 2.0, style, SegmentedCurveShape.Concave);
+            Eval(e, 1.0).Should().BeApproximately(1.0, 1e-9,
+                $"style={style} concave must reach full deflection at a=1");
+        }
+    }
+
+    [Fact]
+    public void Threshold_value_continuity_for_all_styles_and_shapes()
+    {
+        // out(t) = t for above-threshold across all combinations.
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
+        {
+            var e = AboveStyleShape(0.3, 2.0, style, shape);
+            Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9,
+                $"style={style} shape={shape} must pass through (t, t)");
+        }
+    }
+
+    [Fact]
+    public void Below_threshold_zero_in_zero_out_for_all_styles_and_shapes()
+    {
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
+        {
+            var e = BelowStyleShape(0.3, 2.0, style, shape);
+            Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9,
+                $"style={style} shape={shape} must pass through (0, 0)");
+        }
+    }
+
+    // ============================================================
+    // QuinticSmooth — the recommended C² smooth style
+    // ============================================================
+
+    [Fact]
+    public void QuinticSmooth_above_convex_no_dip_below_chord()
+    {
+        // The whole point of QuinticSmooth: C²-matched curvature at the
+        // threshold eliminates the dip that cubic Hermite produces. The
+        // convex curve should sit at or below the chord (it's still convex)
+        // but not by much near the threshold — specifically, near the
+        // threshold the curve should be very close to the chord (curvature
+        // matched).
+        var e = AboveStyleShape(0.3, 3.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex);
+        // Just above the threshold, output should be very close to a (the
+        // chord). Within e.g. 5% of (a − t) — tight enough to catch a dip.
+        var a = 0.35;
+        var chord = a;
+        var output = Eval(e, a);
+        // Allow up to 2% of the curve range below the chord. Cubic Hermite
+        // with same params would dip several percent.
+        var depthBelow = chord - output;
+        depthBelow.Should().BeLessThan(0.02,
+            "QuinticSmooth must NOT dip significantly below the chord near the threshold");
+    }
+
+    [Fact]
+    public void QuinticSmooth_above_concave_no_bulge_above_chord()
+    {
+        var e = AboveStyleShape(0.3, 3.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Concave);
+        var a = 0.35;
+        var chord = a;
+        var output = Eval(e, a);
+        var bulgeAbove = output - chord;
+        bulgeAbove.Should().BeLessThan(0.02,
+            "QuinticSmooth must NOT bulge significantly above the chord near the threshold");
+    }
+
+    [Fact]
+    public void QuinticSmooth_above_is_C2_smooth_at_threshold()
+    {
+        // Slope matches across the threshold (C¹).
+        var e = AboveStyleShape(0.3, 2.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex);
+        var slopeBelow = Slope(e, 0.2999);
+        var slopeAbove = Slope(e, 0.3001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+        // Curvature should also match (both 0, since linear segment has zero
+        // curvature). Use finite difference on slope.
+        var s_minus = Slope(e, 0.3001, h: 1e-4);
+        var s_plus = Slope(e, 0.3001 + 2e-4, h: 1e-4);
+        var curvatureAbove = (s_plus - s_minus) / 2e-4;
+        // QuinticSmooth has matched-zero-curvature at the join, so curvature
+        // just above the threshold should be very small. Allow a generous
+        // tolerance because finite differences are noisy.
+        Math.Abs(curvatureAbove).Should().BeLessThan(5.0,
+            "QuinticSmooth must have ≈0 curvature at the threshold");
+    }
+
+    [Fact]
+    public void QuinticSmooth_above_terminal_slope_matches_exponent()
+    {
+        var e = AboveStyleShape(0.3, 3.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex);
+        var s = Slope(e, 0.9999, h: 1e-6);
+        s.Should().BeApproximately(3.0, 0.05);
+    }
+
+    [Fact]
+    public void QuinticSmooth_with_exponent_one_is_pure_linear()
+    {
+        // Start slope = 1, end slope = 1, curvatures = 0 → polynomial
+        // collapses to a straight line.
+        var e = AboveStyleShape(0.3, 1.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex);
+        foreach (var a in new[] { 0.0, 0.3, 0.5, 0.7, 1.0 })
+        {
+            Eval(e, a).Should().BeApproximately(a, 1e-9);
+        }
+    }
+
+    [Fact]
+    public void QuinticSmooth_below_zero_in_zero_out()
+    {
+        BelowStyleShape(0.4, 2.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex)
+            .Evaluate(Signal.Scalar(0.0), 0.01).ScalarValue.Should().BeApproximately(0.0, 1e-9);
+    }
+
+    [Fact]
+    public void QuinticSmooth_below_smooth_at_threshold()
+    {
+        var e = BelowStyleShape(0.4, 2.0, SegmentedCurveTransitionStyle.QuinticSmooth, SegmentedCurveShape.Convex);
+        var slopeBelow = Slope(e, 0.3999);
+        var slopeAbove = Slope(e, 0.4001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0, 0.01);
+    }
+
+    // ============================================================
+    // PowerCurve — additive form with documented slope mismatch
+    // ============================================================
+
+    [Fact]
+    public void PowerCurve_above_convex_no_dip()
+    {
+        var e = AboveStyleShape(0.3, 2.0, SegmentedCurveTransitionStyle.PowerCurve, SegmentedCurveShape.Convex);
+        // No-dip property: convex curve sits at or below chord but never
+        // dips by an unbounded amount; specifically, output at any a should
+        // be in [linear_floor, a] where linear_floor matches the renormalized
+        // power-curve formula at that a.
+        // Easier test: confirm monotonicity & endpoint properties.
+        var a = 0.6;
+        var output = Eval(e, a);
+        output.Should().BeLessThanOrEqualTo(a + 1e-9, "PowerCurve convex sits at/below chord");
+        output.Should().BeGreaterThan(0.3 - 1e-9, "PowerCurve convex stays above threshold value");
+    }
+
+    [Fact]
+    public void PowerCurve_above_documented_slope_mismatch_at_threshold()
+    {
+        // PowerCurve renormalization induces a slope mismatch: linear side
+        // has slope 1, curved side starts at slope 1/n. This is a documented
+        // trade-off for the simpler additive formula. Lock it in so it
+        // doesn't accidentally "improve."
+        var n = 2.0;
+        var e = AboveStyleShape(0.3, n, SegmentedCurveTransitionStyle.PowerCurve, SegmentedCurveShape.Convex);
+        var slopeBelow = Slope(e, 0.2999);
+        var slopeAbove = Slope(e, 0.3001);
+        slopeBelow.Should().BeApproximately(1.0, 0.01);
+        slopeAbove.Should().BeApproximately(1.0 / n, 0.02,
+            "PowerCurve convex starts the curved segment at slope 1/n");
+    }
+
+    [Fact]
+    public void PowerCurve_above_preserves_endpoint()
+    {
+        AboveStyleShape(0.3, 2.0, SegmentedCurveTransitionStyle.PowerCurve, SegmentedCurveShape.Convex)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+        AboveStyleShape(0.3, 3.5, SegmentedCurveTransitionStyle.PowerCurve, SegmentedCurveShape.Concave)
+            .Evaluate(Signal.Scalar(1.0), 0.01).ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void PowerCurve_with_exponent_one_is_pure_linear()
+    {
+        // raw(u) = u + 0*u² = u; raw(1) = 1; out = t + u*(1-t) = a.
+        var e = AboveStyleShape(0.3, 1.0, SegmentedCurveTransitionStyle.PowerCurve, SegmentedCurveShape.Convex);
+        foreach (var a in new[] { 0.0, 0.3, 0.5, 0.7, 1.0 })
+        {
+            Eval(e, a).Should().BeApproximately(a, 1e-9);
+        }
+    }
+
+    // ============================================================
+    // Shape symmetry — convex and concave should be reflections
+    // ============================================================
+
+    [Fact]
+    public void Convex_and_concave_are_reflections_across_chord_above_threshold()
+    {
+        // For each style, convex(a) and concave(a) should be related by
+        // reflection across the chord (which is y = a in this case since
+        // both endpoints are on the diagonal).
+        // Reflection across y = a: concave_output should satisfy
+        //   concave(a) + convex(a) ≈ 2 * a    (in the above-threshold case
+        //   where the chord goes from (t,t) to (1,1) along y=x, so the
+        //   reflection of point (a, y) across y=x is (y, a), but we're
+        //   reflecting outputs at the same x — so the relation is
+        //   concave_out(a) ≈ a + (a − convex_out(a)).
+        // i.e. concave_out(a) − a ≈ a − convex_out(a)
+        // i.e. concave_out(a) + convex_out(a) ≈ 2a
+        var t = 0.3;
+        var n = 2.0;
+        var samples = new[] { 0.4, 0.5, 0.7, 0.9 };
+        foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
+            var convex = AboveStyleShape(t, n, style, SegmentedCurveShape.Convex);
+            var concave = AboveStyleShape(t, n, style, SegmentedCurveShape.Concave);
+            foreach (var a in samples)
+            {
+                var sum = Eval(convex, a) + Eval(concave, a);
+                sum.Should().BeApproximately(2.0 * a, 0.02,
+                    $"style={style} convex+concave should sum to 2a at a={a} (reflection)");
+            }
+        }
+    }
+
+    // ============================================================
+    // Cross-style smoke
+    // ============================================================
+
+    [Fact]
+    public void Five_styles_produce_five_distinct_outputs_at_same_input()
+    {
+        // Confirm the dispatch routes to five distinct math paths.
+        var t = 0.3;
+        var n = 2.0;
+        var a = 0.6;
+        var results = Enum.GetValues<SegmentedCurveTransitionStyle>()
+            .Select(style => Eval(AboveStyleShape(t, n, style, SegmentedCurveShape.Convex), a))
+            .ToArray();
+        results.Should().HaveCount(5);
+        results.Distinct().Should().HaveCount(5,
+            "all five styles should produce numerically distinct outputs for the same input");
+    }
+
+    [Fact]
+    public void Default_factory_uses_quintic_smooth_convex()
+    {
+        var def = SegmentedResponseCurveModifier.Default;
+        def.TransitionStyle.Should().Be(SegmentedCurveTransitionStyle.QuinticSmooth);
+        def.Shape.Should().Be(SegmentedCurveShape.Convex);
+    }
+
+    [Fact]
+    public void Constructor_default_shape_is_convex_for_backward_compat()
+    {
+        // Sanity check: 4-arg constructor (no Shape) picks Convex.
+        var mod = new SegmentedResponseCurveModifier(0.3, 2.0,
+            SegmentedCurveRegion.AboveThreshold,
+            SegmentedCurveTransitionStyle.Hard);
+        mod.Shape.Should().Be(SegmentedCurveShape.Convex,
+            "v4 JSON without shape field must deserialize with Convex default");
     }
 }
 
@@ -458,7 +1092,7 @@ public class ChainEvaluatorTests
             new Modifier[]
             {
                 new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0),
-                new SensitivityModifier(0.5),
+                new OutputScaleModifier(0.5),
             },
             new StickAxisTarget(Stick.Left, AxisComponent.X));
 
@@ -480,6 +1114,90 @@ public class ChainEvaluatorTests
 
         chain.IsValid.Should().BeFalse();
         chain.InvalidReason.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void OutputScale_caps_post_integrator_signal()
+    {
+        // Behavior contract: Mouse → StickDynamics → OutputScale(0.5) → Stick.
+        // Integrator saturates at ±1; OutputScale clamps to ±0.5. Full deflection
+        // intentionally unreachable from here — this is the governor use case
+        // and the original "bug" that triggered the rename + DeltaScale work.
+        // Locking this in so a future change doesn't silently re-merge the two
+        // behaviors.
+        var chain = new ChainEvaluator(
+            new MouseAxisSource(MouseAxis.Y),
+            new Modifier[]
+            {
+                new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0),
+                new OutputScaleModifier(0.5),
+            },
+            new StickAxisTarget(Stick.Left, AxisComponent.X));
+
+        chain.IsValid.Should().BeTrue();
+        // 100 counts → Persistent integrator output = 1.0; OutputScale halves it.
+        // Saturate well beyond by sending more than enough.
+        for (int i = 0; i < 20; i++)
+            chain.Apply(RawEvent.ForMouseMove(0, 10, 0));
+        var sig = chain.EndOfTick(0.01);
+        sig.ScalarValue.Should().BeApproximately(0.5, 1e-9);
+    }
+
+    [Fact]
+    public void DeltaScale_reduces_sensitivity_without_capping_max()
+    {
+        // Behavior contract: Mouse → DeltaScale(0.5) → StickDynamics → Stick.
+        // Half the effective counts reach the integrator, so it takes ~2× more
+        // motion to reach full deflection — but it CAN reach full deflection.
+        // Codifies the gamer-intuition behavior the user (Zanges) asked for.
+        var chain = new ChainEvaluator(
+            new MouseAxisSource(MouseAxis.Y),
+            new Modifier[]
+            {
+                new DeltaScaleModifier(0.5),
+                new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0),
+            },
+            new StickAxisTarget(Stick.Left, AxisComponent.X));
+
+        chain.IsValid.Should().BeTrue();
+        // 100 raw counts × 0.5 = 50 scaled counts → 50/100 = 0.5 deflection.
+        // 200 raw counts × 0.5 = 100 scaled → 1.0 deflection — full reach.
+        for (int i = 0; i < 20; i++)
+            chain.Apply(RawEvent.ForMouseMove(0, 10, 0));
+        var sig = chain.EndOfTick(0.01);
+        sig.ScalarValue.Should().BeApproximately(1.0, 1e-9);
+    }
+
+    [Fact]
+    public void DeltaScale_below_one_requires_more_motion_for_same_deflection()
+    {
+        // Concrete numeric proof of the contract: the same raw mouse motion
+        // produces less deflection with DeltaScale 0.5 in the chain than without.
+        var without = new ChainEvaluator(
+            new MouseAxisSource(MouseAxis.Y),
+            new Modifier[] { new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0) },
+            new StickAxisTarget(Stick.Left, AxisComponent.X));
+        var with = new ChainEvaluator(
+            new MouseAxisSource(MouseAxis.Y),
+            new Modifier[]
+            {
+                new DeltaScaleModifier(0.5),
+                new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0),
+            },
+            new StickAxisTarget(Stick.Left, AxisComponent.X));
+
+        // 50 raw counts each.
+        for (int i = 0; i < 5; i++)
+        {
+            without.Apply(RawEvent.ForMouseMove(0, 10, 0));
+            with.Apply(RawEvent.ForMouseMove(0, 10, 0));
+        }
+        var sigWithout = without.EndOfTick(0.01);
+        var sigWith = with.EndOfTick(0.01);
+
+        // Without DeltaScale: 50/100 = 0.5. With DeltaScale 0.5: 25/100 = 0.25.
+        sigWithout.ScalarValue.Should().BeApproximately(0.5, 1e-9);
+        sigWith.ScalarValue.Should().BeApproximately(0.25, 1e-9);
     }
 
     [Fact]
@@ -1153,6 +1871,323 @@ public class WaitForTapResolutionEvaluatorTests
         // No fire after reset, even after the wait window.
         for (int i = 0; i < 50; i++)
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+    }
+}
+
+public class ParametricCurveEvaluatorTests
+{
+    private static ParametricCurveEvaluator Make(IEnumerable<(double X, double Y)> points, bool symmetric = true)
+    {
+        var mod = new ParametricCurveModifier
+        {
+            Points = points.Select(p => new CurvePoint(p.X, p.Y)).ToArray(),
+            Symmetric = symmetric,
+        };
+        return new ParametricCurveEvaluator(mod);
+    }
+
+    private static double Eval(ParametricCurveEvaluator e, double x) =>
+        e.Evaluate(Signal.Scalar(x), 0.01).ScalarValue;
+
+    [Fact]
+    public void Identity_curve_passes_input_through_unchanged()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.5), (1.0, 1.0) });
+        foreach (var x in new[] { 0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0 })
+            Eval(e, x).Should().BeApproximately(x, 1e-9, $"identity at x={x}");
+    }
+
+    [Fact]
+    public void Identity_curve_is_symmetric_around_zero()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.5), (1.0, 1.0) }, symmetric: true);
+        Eval(e, -0.3).Should().BeApproximately(-0.3, 1e-9);
+        Eval(e, -0.7).Should().BeApproximately(-0.7, 1e-9);
+    }
+
+    [Fact]
+    public void Symmetric_mode_mirrors_arbitrary_curve_to_negative_side()
+    {
+        // S-curve-ish: dip at low input, accelerate at high input.
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.2), (1.0, 1.0) }, symmetric: true);
+        foreach (var x in new[] { 0.1, 0.3, 0.5, 0.7, 0.9 })
+            Eval(e, -x).Should().BeApproximately(-Eval(e, x), 1e-9,
+                $"symmetric mirror at ±{x}");
+    }
+
+    [Fact]
+    public void Full_range_mode_can_be_asymmetric()
+    {
+        // Define curve with different shapes for positive and negative input.
+        var e = Make(new[]
+        {
+            (-1.0, -1.0),
+            (-0.5, -0.7),     // negative side: steep tip
+            (0.0, 0.0),
+            (0.5, 0.2),       // positive side: gentle tip
+            (1.0, 1.0),
+        }, symmetric: false);
+        // Output at +0.5 differs from -output at -0.5 (different shape per side).
+        var posOut = Eval(e, 0.5);
+        var negOut = Eval(e, -0.5);
+        Math.Abs(posOut - (-negOut)).Should().BeGreaterThan(0.01,
+            "full-range mode should allow asymmetric shape");
+    }
+
+    [Fact]
+    public void Output_passes_through_control_point_values()
+    {
+        // The spline must interpolate (not approximate) — output at each
+        // control point's X equals that point's Y.
+        var pts = new[] { (0.0, 0.05), (0.3, 0.4), (0.7, 0.8), (1.0, 0.95) };
+        var e = Make(pts);
+        foreach (var (x, y) in pts)
+            Eval(e, x).Should().BeApproximately(y, 1e-9, $"interpolation at x={x}");
+    }
+
+    [Fact]
+    public void Monotonic_input_data_yields_monotonic_output()
+    {
+        // Take a curve with widely varying segment slopes — Fritsch-Carlson
+        // must keep output monotonic.
+        var e = Make(new[] { (0.0, 0.0), (0.3, 0.05), (0.5, 0.5), (0.7, 0.55), (1.0, 1.0) });
+        double prev = double.NegativeInfinity;
+        for (int i = 0; i <= 100; i++)
+        {
+            var x = i / 100.0;
+            var y = Eval(e, x);
+            y.Should().BeGreaterThanOrEqualTo(prev - 1e-9,
+                $"monotonicity violated at x={x}: prev={prev}, curr={y}");
+            prev = y;
+        }
+    }
+
+    [Fact]
+    public void Monotonicity_holds_with_flat_segment()
+    {
+        // Flat middle segment: (0.3, 0.5), (0.7, 0.5). Output across flat
+        // region should stay constant at 0.5, no over/undershoot.
+        var e = Make(new[] { (0.0, 0.0), (0.3, 0.5), (0.7, 0.5), (1.0, 1.0) });
+        for (int i = 30; i <= 70; i++)
+        {
+            var x = i / 100.0;
+            Eval(e, x).Should().BeApproximately(0.5, 0.001,
+                $"flat segment at x={x}");
+        }
+    }
+
+    [Fact]
+    public void Below_first_point_extrapolates_linearly()
+    {
+        // In full-range mode, if points don't span the full [-1, 1], the
+        // evaluator extrapolates linearly from the nearest endpoint.
+        var e = Make(new[] { (0.2, 0.1), (1.0, 1.0) }, symmetric: false);
+        var below = Eval(e, 0.0);
+        below.Should().BeLessThan(0.1, "extrapolation below first point");
+    }
+
+    [Fact]
+    public void Above_last_point_extrapolates_linearly()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.8, 0.9) }, symmetric: false);
+        var above = Eval(e, 1.0);
+        above.Should().BeGreaterThan(0.9, "extrapolation above last point").And.BeLessThanOrEqualTo(1.0);
+    }
+
+    [Fact]
+    public void Out_of_range_input_clamps_to_unit()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.5), (1.0, 1.0) });
+        Eval(e, 1.5).Should().BeApproximately(1.0, 1e-9, "input > 1 clamps");
+        Eval(e, -1.5).Should().BeApproximately(-1.0, 1e-9, "input < -1 clamps in symmetric mode");
+    }
+
+    [Fact]
+    public void Nan_input_yields_zero_output()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.5), (1.0, 1.0) });
+        Eval(e, double.NaN).Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Fewer_than_two_points_falls_back_to_passthrough()
+    {
+        var modOnePoint = new ParametricCurveModifier { Points = new[] { new CurvePoint(0.5, 0.5) } };
+        var e = new ParametricCurveEvaluator(modOnePoint);
+        Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9);
+        Eval(e, 0.7).Should().BeApproximately(0.7, 1e-9);
+
+        var modNoPoints = new ParametricCurveModifier { Points = Array.Empty<CurvePoint>() };
+        var e2 = new ParametricCurveEvaluator(modNoPoints);
+        Eval(e2, 0.4).Should().BeApproximately(0.4, 1e-9);
+    }
+
+    [Fact]
+    public void Duplicate_x_values_dont_crash_or_produce_nan()
+    {
+        // Adjacent X values within 1e-6 should be snapped apart inside the
+        // evaluator. Test with duplicates and near-duplicates.
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.3), (0.5, 0.7), (1.0, 1.0) });
+        var output = Eval(e, 0.5);
+        double.IsFinite(output).Should().BeTrue();
+        output.Should().BeInRange(0.0, 1.0);
+
+        for (int i = 0; i <= 100; i++)
+        {
+            var y = Eval(e, i / 100.0);
+            double.IsFinite(y).Should().BeTrue($"no NaN/Inf at x={i / 100.0}");
+        }
+    }
+
+    [Fact]
+    public void Points_out_of_order_are_sorted_internally()
+    {
+        // Pass points in reverse X order; evaluator sorts them.
+        var e = Make(new[] { (1.0, 1.0), (0.5, 0.4), (0.0, 0.0) });
+        // At x=0.5, output should be 0.4 (the interior control point).
+        Eval(e, 0.5).Should().BeApproximately(0.4, 1e-9);
+    }
+
+    [Fact]
+    public void Sign_preservation_in_symmetric_mode_when_curve_is_concave()
+    {
+        // Concave curve in [0, 1]: output > input. Mirrored, output for
+        // negative input should also be concave (more negative output).
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.7), (1.0, 1.0) }, symmetric: true);
+        var pos = Eval(e, 0.5);
+        var neg = Eval(e, -0.5);
+        pos.Should().BeGreaterThan(0.5);   // concave above chord
+        neg.Should().BeLessThan(-0.5);     // negative, more negative than -0.5
+        neg.Should().BeApproximately(-pos, 1e-9);
+    }
+
+    [Fact]
+    public void Default_factory_is_three_point_identity_symmetric()
+    {
+        var def = ParametricCurveModifier.Default;
+        def.Symmetric.Should().BeTrue();
+        def.Points.Should().HaveCount(3);
+        def.Points[0].Should().Be(new CurvePoint(0.0, 0.0));
+        def.Points[1].Should().Be(new CurvePoint(0.5, 0.5));
+        def.Points[2].Should().Be(new CurvePoint(1.0, 1.0));
+    }
+
+    [Fact]
+    public void Reset_is_a_noop_because_evaluator_is_stateless()
+    {
+        var e = Make(new[] { (0.0, 0.0), (0.5, 0.3), (1.0, 1.0) });
+        var before = Eval(e, 0.5);
+        e.Reset();
+        var after = Eval(e, 0.5);
+        after.Should().Be(before);
+    }
+
+    [Fact]
+    public void Config_property_exposes_underlying_modifier()
+    {
+        var mod = ParametricCurveModifier.Default;
+        var e = new ParametricCurveEvaluator(mod);
+        e.Config.Should().BeSameAs(mod);
+    }
+
+    [Fact]
+    public void Equals_compares_points_by_value()
+    {
+        // Custom Equals override on the modifier — list-of-records must
+        // compare by content, not by reference. Required for the engine's
+        // "preserve state when chain unchanged" optimization.
+        var a = new ParametricCurveModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(1.0, 1.0) }
+        };
+        var b = new ParametricCurveModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(1.0, 1.0) }
+        };
+        a.Should().Be(b);
+        a.GetHashCode().Should().Be(b.GetHashCode());
+
+        var c = new ParametricCurveModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(1.0, 0.9) }
+        };
+        a.Should().NotBe(c);
+    }
+
+    // ============================================================
+    // CurveEditorModifier — shares math with ParametricCurveModifier
+    // ============================================================
+
+    [Fact]
+    public void CurveEditor_modifier_evaluates_identically_to_ParametricCurve_modifier()
+    {
+        // Both modifier kinds wrap the same data; both delegate to the same
+        // ParametricCurveEvaluator. Outputs must match exactly for identical
+        // points + symmetric flag.
+        var points = new[]
+        {
+            new CurvePoint(0.0, 0.0),
+            new CurvePoint(0.3, 0.5),
+            new CurvePoint(0.7, 0.6),
+            new CurvePoint(1.0, 1.0),
+        };
+
+        var paramMod = new ParametricCurveModifier { Points = points, Symmetric = true };
+        var editorMod = new CurveEditorModifier { Points = points, Symmetric = true };
+
+        var paramEval = new ParametricCurveEvaluator(paramMod);
+        var editorEval = new ParametricCurveEvaluator(editorMod);
+
+        foreach (var x in new[] { -1.0, -0.7, -0.3, 0.0, 0.15, 0.45, 0.6, 0.85, 1.0 })
+        {
+            var paramOut = paramEval.Evaluate(Signal.Scalar(x), 0.01).ScalarValue;
+            var editorOut = editorEval.Evaluate(Signal.Scalar(x), 0.01).ScalarValue;
+            editorOut.Should().Be(paramOut,
+                $"shared math at x={x}: CurveEditor and ParametricCurve must produce identical output");
+        }
+    }
+
+    [Fact]
+    public void CurveEditor_modifier_default_is_three_point_identity_symmetric()
+    {
+        var def = CurveEditorModifier.Default;
+        def.Symmetric.Should().BeTrue();
+        def.Points.Should().HaveCount(3);
+        def.Points[0].Should().Be(new CurvePoint(0.0, 0.0));
+        def.Points[1].Should().Be(new CurvePoint(0.5, 0.5));
+        def.Points[2].Should().Be(new CurvePoint(1.0, 1.0));
+    }
+
+    [Fact]
+    public void CurveEditor_modifier_equals_compares_points_by_value()
+    {
+        var a = new CurveEditorModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(0.5, 0.4), new CurvePoint(1.0, 1.0) }
+        };
+        var b = new CurveEditorModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(0.5, 0.4), new CurvePoint(1.0, 1.0) }
+        };
+        a.Should().Be(b);
+        a.GetHashCode().Should().Be(b.GetHashCode());
+
+        var c = new CurveEditorModifier
+        {
+            Points = new[] { new CurvePoint(0.0, 0.0), new CurvePoint(0.5, 0.5), new CurvePoint(1.0, 1.0) }
+        };
+        a.Should().NotBe(c);
+    }
+
+    [Fact]
+    public void ICurveData_interface_implemented_by_both_modifiers()
+    {
+        ICurveData paramData = ParametricCurveModifier.Default;
+        ICurveData editorData = CurveEditorModifier.Default;
+        paramData.Points.Should().HaveCount(3);
+        editorData.Points.Should().HaveCount(3);
+        paramData.Symmetric.Should().BeTrue();
+        editorData.Symmetric.Should().BeTrue();
     }
 }
 

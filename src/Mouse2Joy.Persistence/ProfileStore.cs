@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Mouse2Joy.Persistence.Legacy.V1;
 using Mouse2Joy.Persistence.Migration;
 using Mouse2Joy.Persistence.Models;
@@ -67,20 +68,98 @@ public sealed class ProfileStore
     }
 
     /// <summary>
-    /// Peek the schemaVersion field on the JSON, then deserialize through
-    /// the appropriate path. v1 documents are migrated to v2 in memory; the
-    /// next Save() will rewrite them in the new shape.
+    /// Peek the schemaVersion field on the JSON, then deserialize through a
+    /// chained migration pipeline. Migrations run in order, each bringing the
+    /// in-memory JSON up to the next schema version. The next Save() persists
+    /// the migrated document in the current shape.
+    ///
+    /// <para>Pipeline:</para>
+    /// <list type="bullet">
+    ///   <item>v1 (or unversioned) → v2: typed-record rebuild via
+    ///   <see cref="V1ToV2"/> (structural change).</item>
+    ///   <item>v2 → v3: JSON-node rewrite via <see cref="V2ToV3"/>
+    ///   (sensitivity → outputScale rename).</item>
+    ///   <item>v3 → v4: version-stamp bump via <see cref="V3ToV4"/>
+    ///   (defaulted <c>transitionStyle</c> field on segmentedResponseCurve;
+    ///   constructor default handles deserialization, migration just bumps
+    ///   the stamp).</item>
+    ///   <item>v4 → v5: version-stamp bump via <see cref="V4ToV5"/>
+    ///   (defaulted <c>shape</c> field plus two new transitionStyle values;
+    ///   constructor default handles deserialization).</item>
+    ///   <item>v5 → v6: version-stamp bump via <see cref="V5ToV6"/>
+    ///   (added <c>parametricCurve</c> modifier kind; no existing profiles
+    ///   to rewrite).</item>
+    ///   <item>v6 → v7: version-stamp bump via <see cref="V6ToV7"/>
+    ///   (added <c>curveEditor</c> modifier kind; no existing profiles
+    ///   to rewrite).</item>
+    /// </list>
     /// </summary>
     internal static Profile? DeserializeProfile(string json)
     {
         var version = PeekSchemaVersion(json);
-        if (version >= Profile.CurrentSchemaVersion)
-            return JsonSerializer.Deserialize<Profile>(json, JsonOptions.Default);
 
-        // v1 (or unversioned, treated as v1) — go through the legacy types.
-        var legacy = JsonSerializer.Deserialize<LegacyProfile>(json, JsonOptions.Default);
-        if (legacy is null) return null;
-        return V1ToV2.Migrate(legacy);
+        // v1 → v2: structural migration through legacy types. Re-serialize the
+        // v2 result so subsequent JSON-node migrations operate on uniform input.
+        if (version < 2)
+        {
+            var legacy = JsonSerializer.Deserialize<LegacyProfile>(json, JsonOptions.Default);
+            if (legacy is null) return null;
+            var v2 = V1ToV2.Migrate(legacy);
+            json = JsonSerializer.Serialize(v2, JsonOptions.Default);
+            version = 2;
+        }
+
+        // v2 → v3: JSON-node rewrite (sensitivity → outputScale).
+        if (version < 3)
+        {
+            var node = JsonNode.Parse(json);
+            if (node is null) return null;
+            V2ToV3.Apply(node);
+            json = node.ToJsonString(JsonOptions.Default);
+            version = 3;
+        }
+
+        // v3 → v4: version-stamp bump (defaulted transitionStyle field).
+        if (version < 4)
+        {
+            var node = JsonNode.Parse(json);
+            if (node is null) return null;
+            V3ToV4.Apply(node);
+            json = node.ToJsonString(JsonOptions.Default);
+            version = 4;
+        }
+
+        // v4 → v5: version-stamp bump (defaulted shape field + new style values).
+        if (version < 5)
+        {
+            var node = JsonNode.Parse(json);
+            if (node is null) return null;
+            V4ToV5.Apply(node);
+            json = node.ToJsonString(JsonOptions.Default);
+            version = 5;
+        }
+
+        // v5 → v6: version-stamp bump (added parametricCurve modifier kind).
+        if (version < 6)
+        {
+            var node = JsonNode.Parse(json);
+            if (node is null) return null;
+            V5ToV6.Apply(node);
+            json = node.ToJsonString(JsonOptions.Default);
+            version = 6;
+        }
+
+        // v6 → v7: version-stamp bump (added curveEditor modifier kind).
+        if (version < 7)
+        {
+            var node = JsonNode.Parse(json);
+            if (node is null) return null;
+            V6ToV7.Apply(node);
+            json = node.ToJsonString(JsonOptions.Default);
+            version = 7;
+        }
+
+        return JsonSerializer.Deserialize<Profile>(json, JsonOptions.Default);
     }
 
     private static int PeekSchemaVersion(string json)

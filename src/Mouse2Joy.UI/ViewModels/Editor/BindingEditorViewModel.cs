@@ -136,14 +136,17 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
 
     private static ModifierParamProxy? BuildProxy(ModifierCardViewModel card) => card.Modifier switch
     {
+        DeltaScaleModifier => new DeltaScaleProxy(card),
         StickDynamicsModifier => new StickDynamicsProxy(card),
         DigitalToScalarModifier => new DigitalToScalarProxy(card),
         ScalarToDigitalThresholdModifier => new ScalarToDigitalThresholdProxy(card),
-        SensitivityModifier => new SensitivityProxy(card),
+        OutputScaleModifier => new OutputScaleProxy(card),
         InnerDeadzoneModifier => new InnerDeadzoneProxy(card),
         OuterSaturationModifier => new OuterSaturationProxy(card),
         ResponseCurveModifier => new ResponseCurveProxy(card),
         SegmentedResponseCurveModifier => new SegmentedResponseCurveProxy(card),
+        ParametricCurveModifier => new ParametricCurveProxy(card),
+        CurveEditorModifier => new CurveEditorProxy(card),
         RampUpModifier => new RampUpProxy(card),
         RampDownModifier => new RampDownProxy(card),
         LimiterModifier => new LimiterProxy(card),

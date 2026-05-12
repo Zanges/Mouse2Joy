@@ -68,13 +68,13 @@ public class BindingEditorViewModelTests
             Modifiers = new Modifier[]
             {
                 StickDynamicsModifier.DefaultVelocity,
-                new SensitivityModifier(1.5),
+                new OutputScaleModifier(1.5),
                 new InvertModifier(),
             }
         });
         vm.MoveUp(2);
         vm.Modifiers[1].Modifier.Should().BeOfType<InvertModifier>();
-        vm.Modifiers[2].Modifier.Should().BeOfType<SensitivityModifier>();
+        vm.Modifiers[2].Modifier.Should().BeOfType<OutputScaleModifier>();
     }
 
     [Fact]
@@ -88,11 +88,11 @@ public class BindingEditorViewModelTests
             {
                 StickDynamicsModifier.DefaultVelocity,
                 new InvertModifier(),
-                new SensitivityModifier(1.5),
+                new OutputScaleModifier(1.5),
             }
         });
         vm.MoveDown(1);
-        vm.Modifiers[1].Modifier.Should().BeOfType<SensitivityModifier>();
+        vm.Modifiers[1].Modifier.Should().BeOfType<OutputScaleModifier>();
         vm.Modifiers[2].Modifier.Should().BeOfType<InvertModifier>();
     }
 
@@ -118,7 +118,7 @@ public class BindingEditorViewModelTests
             Modifiers = new Modifier[]
             {
                 StickDynamicsModifier.DefaultVelocity,
-                new SensitivityModifier(1.5),
+                new OutputScaleModifier(1.5),
             },
             Label = "Steering"
         });
@@ -126,7 +126,7 @@ public class BindingEditorViewModelTests
         result.Id.Should().Be(id);
         result.Label.Should().Be("Steering");
         result.Modifiers.Should().HaveCount(2);
-        result.Modifiers[1].Should().BeOfType<SensitivityModifier>().Which.Multiplier.Should().Be(1.5);
+        result.Modifiers[1].Should().BeOfType<OutputScaleModifier>().Which.Factor.Should().Be(1.5);
     }
 
     [Fact]
@@ -139,13 +139,13 @@ public class BindingEditorViewModelTests
             Modifiers = new Modifier[]
             {
                 StickDynamicsModifier.DefaultVelocity,
-                new SensitivityModifier(1.0)
+                new OutputScaleModifier(1.0)
             }
         });
-        var sensCard = vm.Modifiers.First(c => c.Modifier is SensitivityModifier);
+        var sensCard = vm.Modifiers.First(c => c.Modifier is OutputScaleModifier);
         vm.SelectedCard = sensCard;
-        var proxy = vm.SelectedProxy.Should().BeOfType<SensitivityProxy>().Subject;
-        proxy.Multiplier = 2.5;
-        ((SensitivityModifier)sensCard.Modifier).Multiplier.Should().Be(2.5);
+        var proxy = vm.SelectedProxy.Should().BeOfType<OutputScaleProxy>().Subject;
+        proxy.Factor = 2.5;
+        ((OutputScaleModifier)sensCard.Modifier).Factor.Should().Be(2.5);
     }
 }

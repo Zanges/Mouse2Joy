@@ -52,18 +52,37 @@
         </StackPanel>
     </DataTemplate>
 
-    <!-- Sensitivity -->
-    <DataTemplate DataType="{x:Type vm:SensitivityProxy}">
+    <!-- Delta Scale (pre-integrator mouse-count multiplier) -->
+    <DataTemplate DataType="{x:Type vm:DeltaScaleProxy}">
         <StackPanel>
-            <TextBlock Text="Multiplier"/>
+            <TextBlock Text="Factor"/>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="60"/>
                 </Grid.ColumnDefinitions>
-                <Slider Grid.Column="0" Minimum="0.05" Maximum="5" SmallChange="0.05" Value="{Binding Multiplier, Mode=TwoWay}"/>
-                <TextBox Grid.Column="1" Text="{Binding Multiplier, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
+                <Slider Grid.Column="0" Minimum="0" Maximum="3" SmallChange="0.05" Value="{Binding Factor, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Text="{Binding Factor, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
             </Grid>
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7"
+                       Text="Multiplies the mouse-count input before integration. Factor &lt; 1 makes the stick require more motion to fully deflect; Factor &gt; 1 makes it snappier. Full deflection is still reachable in both cases. Contrast with Output Scale, which caps the post-integrator output."/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Output Scale (post-integrator scalar multiplier / governor) -->
+    <DataTemplate DataType="{x:Type vm:OutputScaleProxy}">
+        <StackPanel>
+            <TextBlock Text="Factor"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                </Grid.ColumnDefinitions>
+                <Slider Grid.Column="0" Minimum="0.05" Maximum="5" SmallChange="0.05" Value="{Binding Factor, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Text="{Binding Factor, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
+            </Grid>
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7"
+                       Text="Scales the post-integrator signal and clamps to ±1. Use to cap maximum stick output (e.g. 'walking speed never exceeds 60%'). For 'less sensitive but full deflection still reachable,' use Delta Scale instead."/>
         </StackPanel>
     </DataTemplate>
 
@@ -123,6 +142,21 @@
                 <ComboBoxItem Content="Below threshold (curved → linear)" Tag="{x:Static m:SegmentedCurveRegion.BelowThreshold}"/>
             </ComboBox>
 
+            <TextBlock Text="Shape (curved segment direction)"/>
+            <ComboBox SelectedValue="{Binding Shape, Mode=TwoWay}" SelectedValuePath="Tag" Width="220" HorizontalAlignment="Left" Margin="0,0,0,8">
+                <ComboBoxItem Content="Convex (accelerating)" Tag="{x:Static m:SegmentedCurveShape.Convex}"/>
+                <ComboBoxItem Content="Concave (decelerating)" Tag="{x:Static m:SegmentedCurveShape.Concave}"/>
+            </ComboBox>
+
+            <TextBlock Text="Transition style (how segments connect)"/>
+            <ComboBox SelectedValue="{Binding TransitionStyle, Mode=TwoWay}" SelectedValuePath="Tag" Width="220" HorizontalAlignment="Left" Margin="0,0,0,8">
+                <ComboBoxItem Content="Quintic smooth (recommended)" Tag="{x:Static m:SegmentedCurveTransitionStyle.QuinticSmooth}"/>
+                <ComboBoxItem Content="Power curve (simpler math)" Tag="{x:Static m:SegmentedCurveTransitionStyle.PowerCurve}"/>
+                <ComboBoxItem Content="Hermite spline (cubic, may dip)" Tag="{x:Static m:SegmentedCurveTransitionStyle.HermiteSpline}"/>
+                <ComboBoxItem Content="Smoothstep blend" Tag="{x:Static m:SegmentedCurveTransitionStyle.SmoothStep}"/>
+                <ComboBoxItem Content="Hard (sharp transition)" Tag="{x:Static m:SegmentedCurveTransitionStyle.Hard}"/>
+            </ComboBox>
+
             <TextBlock Text="Threshold (|input| where linear and curved segments meet)"/>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -144,7 +178,60 @@
             </Grid>
 
             <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7"
-                       Text="The curved segment is remapped to its own [0, 1] range, so output is continuous at the threshold. Exponent &lt; 1 boosts (concave); &gt; 1 attenuates (convex). The non-curved segment is linear passthrough."/>
+                       Text="Shape: Convex accelerates away from the linear segment (steep at the extreme); Concave decelerates approaching the extreme (steep early, flattens out). Style: Quintic smooth is C² smooth with no dip or bulge by construction (default). Power curve is the simpler additive form; has a small slope mismatch at the threshold. Hermite spline is C¹ smooth but the cubic constraints cause a slight dip (convex) or bulge (concave). Smoothstep blends linear with the power formula. Hard is the original kinked transition. Under Hard/Smoothstep/Power, Exponent is the curve aggressiveness (1 = linear, &gt; 1 = stronger curve). Under Hermite/Quintic, Exponent is the terminal slope at full deflection."/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Curve Editor (popout window) -->
+    <DataTemplate DataType="{x:Type vm:CurveEditorProxy}">
+        <StackPanel>
+            <TextBlock TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7" Margin="0,0,0,12"
+                       Text="Interactive curve editor with drag-and-drop control points. Opens in a separate window. Drag to move points, click empty area to add, right-click to remove, hold Shift to snap to grid."/>
+            <Button Content="Edit Curve..." Command="{Binding OpenEditorCommand}"
+                    HorizontalAlignment="Left" Padding="14,4"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Parametric Curve -->
+    <DataTemplate DataType="{x:Type vm:ParametricCurveProxy}">
+        <StackPanel>
+            <CheckBox Content="Symmetric (mirror negative side)" IsChecked="{Binding Symmetric, Mode=TwoWay}" Margin="0,0,0,8"/>
+
+            <TextBlock Text="Number of points"/>
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                </Grid.ColumnDefinitions>
+                <Slider Grid.Column="0" Minimum="2" Maximum="7" SmallChange="1" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding PointCount, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Text="{Binding PointCount, UpdateSourceTrigger=LostFocus}" Margin="6,0,0,0"/>
+            </Grid>
+
+            <TextBlock Text="Control points (X, Y)" Margin="0,0,0,4"/>
+            <ItemsControl ItemsSource="{Binding PointRows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Index}" VerticalAlignment="Center" FontStyle="Italic" Opacity="0.7"/>
+                            <Slider Grid.Column="1" Minimum="-1" Maximum="1" SmallChange="0.01" Value="{Binding X, Mode=TwoWay}"/>
+                            <TextBox Grid.Column="2" Text="{Binding X, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="4,0,0,0"/>
+                            <Slider Grid.Column="4" Minimum="-1" Maximum="1" SmallChange="0.01" Value="{Binding Y, Mode=TwoWay}"/>
+                            <TextBox Grid.Column="5" Text="{Binding Y, StringFormat=F2, UpdateSourceTrigger=LostFocus}" Margin="4,0,0,0"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontStyle="Italic" Opacity="0.7"
+                       Text="User-defined response curve via control points. Monotone cubic Hermite interpolation (Fritsch-Carlson) gives smooth output and guarantees the response never reverses. Symmetric mode mirrors the negative side from points defined in [0, 1]; turn it off to shape positive and negative inputs independently. Each row's left slider is X (input), right slider is Y (output). Adjust the point count to add or remove interior points; Y values are resampled from the current curve when count changes."/>
         </StackPanel>
     </DataTemplate>
 

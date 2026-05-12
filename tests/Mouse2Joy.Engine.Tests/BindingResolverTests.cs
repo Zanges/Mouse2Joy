@@ -261,7 +261,7 @@ public class BindingResolverTests
                     Modifiers = new Modifier[]
                     {
                         DigitalToScalarModifier.Default,
-                        new SensitivityModifier(0.5),
+                        new OutputScaleModifier(0.5),
                     }
                 },
                 new Binding
@@ -271,7 +271,7 @@ public class BindingResolverTests
                     Modifiers = new Modifier[]
                     {
                         DigitalToScalarModifier.Default,
-                        new SensitivityModifier(0.5),
+                        new OutputScaleModifier(0.5),
                     }
                 }
             }

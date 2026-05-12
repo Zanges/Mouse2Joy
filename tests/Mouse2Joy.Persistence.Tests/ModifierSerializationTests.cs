@@ -23,7 +23,7 @@ public class ModifierSerializationTests
             new StickDynamicsModifier(StickDynamicsMode.Persistent, 400.0, 0.0),
             new DigitalToScalarModifier(1.0, 0.0),
             new ScalarToDigitalThresholdModifier(0.5),
-            new SensitivityModifier(1.5),
+            new OutputScaleModifier(1.5),
             new InnerDeadzoneModifier(0.1),
             new OuterSaturationModifier(0.05),
             new ResponseCurveModifier(1.5),
@@ -40,6 +40,27 @@ public class ModifierSerializationTests
             new MultiTapModifier(2, 0.4, 0.3, 0.05),
             new MultiTapModifier(2, 0.4, 0.3, 0.05, WaitForHigherTaps: true),
             new WaitForTapResolutionModifier(0.3, 0.4, 0.05),
+            new ParametricCurveModifier
+            {
+                Symmetric = true,
+                Points = new[]
+                {
+                    new CurvePoint(0.0, 0.0),
+                    new CurvePoint(0.5, 0.3),
+                    new CurvePoint(1.0, 1.0),
+                }
+            },
+            new CurveEditorModifier
+            {
+                Symmetric = false,
+                Points = new[]
+                {
+                    new CurvePoint(-1.0, -1.0),
+                    new CurvePoint(0.0, 0.0),
+                    new CurvePoint(0.4, 0.6),
+                    new CurvePoint(1.0, 1.0),
+                }
+            },
         };
 
         foreach (var m in modifiers)
@@ -63,7 +84,7 @@ public class ModifierSerializationTests
             Modifiers = new Modifier[]
             {
                 new StickDynamicsModifier(StickDynamicsMode.Velocity, 8.0, 800.0),
-                new SensitivityModifier(1.5),
+                new OutputScaleModifier(1.5),
                 new InnerDeadzoneModifier(0.1),
                 new ResponseCurveModifier(1.2),
             }
@@ -73,7 +94,7 @@ public class ModifierSerializationTests
 
         rt.Modifiers.Should().HaveCount(4);
         rt.Modifiers[0].Should().BeOfType<StickDynamicsModifier>();
-        rt.Modifiers[1].Should().BeOfType<SensitivityModifier>();
+        rt.Modifiers[1].Should().BeOfType<OutputScaleModifier>();
         rt.Modifiers[2].Should().BeOfType<InnerDeadzoneModifier>();
         rt.Modifiers[3].Should().BeOfType<ResponseCurveModifier>();
     }
@@ -95,16 +116,16 @@ public class ModifierSerializationTests
     [Fact]
     public void Disabled_modifier_roundtrips_with_enabled_false()
     {
-        var modifier = new SensitivityModifier(1.5) { Enabled = false };
+        var modifier = new OutputScaleModifier(1.5) { Enabled = false };
         var rt = Roundtrip<Modifier>(modifier);
-        rt.Should().BeOfType<SensitivityModifier>();
+        rt.Should().BeOfType<OutputScaleModifier>();
         rt.Enabled.Should().BeFalse();
     }
 
     [Fact]
     public void Modifier_default_enabled_is_true()
     {
-        var m = new SensitivityModifier(1.0);
+        var m = new OutputScaleModifier(1.0);
         m.Enabled.Should().BeTrue();
     }
 
@@ -124,7 +145,7 @@ public class ModifierSerializationTests
                     {
                         StickDynamicsModifier.DefaultVelocity,
                         new InvertModifier(),
-                        new SensitivityModifier(1.5),
+                        new OutputScaleModifier(1.5),
                     }
                 },
                 new()

@@ -28,7 +28,7 @@ public class V1MigrationTests
             }
         };
         var v2 = MigrateAndGet(v1);
-        v2.SchemaVersion.Should().Be(2);
+        v2.SchemaVersion.Should().Be(Profile.CurrentSchemaVersion);
         v2.Bindings.Should().HaveCount(1);
         v2.Bindings[0].Modifiers.Should().HaveCount(1);
         var sd = v2.Bindings[0].Modifiers[0].Should().BeOfType<StickDynamicsModifier>().Subject;
@@ -82,7 +82,10 @@ public class V1MigrationTests
         mods.Should().HaveCount(5);
         mods[0].Should().BeOfType<StickDynamicsModifier>()
             .Which.Mode.Should().Be(StickDynamicsMode.Accumulator);
-        mods[1].Should().BeOfType<SensitivityModifier>().Which.Multiplier.Should().Be(1.5);
+        // v1 had Sensitivity = 1.5 in the curve; V1ToV2 emits OutputScaleModifier
+        // directly now (since v3 renamed Sensitivity → OutputScale, and V1ToV2
+        // always stamps the current schema). Property was renamed Multiplier → Factor.
+        mods[1].Should().BeOfType<OutputScaleModifier>().Which.Factor.Should().Be(1.5);
         mods[2].Should().BeOfType<InnerDeadzoneModifier>().Which.Threshold.Should().Be(0.1);
         mods[3].Should().BeOfType<OuterSaturationModifier>().Which.Threshold.Should().Be(0.05);
         mods[4].Should().BeOfType<ResponseCurveModifier>().Which.Exponent.Should().Be(1.5);
@@ -179,7 +182,7 @@ public class V1MigrationTests
 
         var profile = ProfileStore.DeserializeProfile(v1Json);
         profile.Should().NotBeNull();
-        profile!.SchemaVersion.Should().Be(2);
+        profile!.SchemaVersion.Should().Be(Profile.CurrentSchemaVersion);
         profile.Bindings.Should().HaveCount(1);
         var mods = profile.Bindings[0].Modifiers;
         mods.Should().HaveCount(2);
@@ -188,9 +191,12 @@ public class V1MigrationTests
     }
 
     [Fact]
-    public void V2_json_skips_migration()
+    public void Current_version_json_skips_migration()
     {
-        var v2 = new Profile
+        // A profile already at the current schema version should round-trip
+        // through DeserializeProfile without any migration step touching it.
+        // Detailed v2→v3 coverage lives in V2ToV3MigrationTests.
+        var current = new Profile
         {
             Name = "Test",
             Bindings = new List<Binding>
@@ -203,10 +209,10 @@ public class V1MigrationTests
                 }
             }
         };
-        var json = JsonSerializer.Serialize(v2, JsonOptions.Default);
+        var json = JsonSerializer.Serialize(current, JsonOptions.Default);
         var rt = ProfileStore.DeserializeProfile(json);
         rt.Should().NotBeNull();
-        rt!.SchemaVersion.Should().Be(2);
+        rt!.SchemaVersion.Should().Be(Profile.CurrentSchemaVersion);
         rt.Bindings[0].Modifiers.Should().HaveCount(1);
         rt.Bindings[0].Modifiers[0].Should().BeOfType<DigitalToScalarModifier>();
     }

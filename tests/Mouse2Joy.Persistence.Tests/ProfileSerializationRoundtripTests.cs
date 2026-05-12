@@ -105,6 +105,6 @@ public class ProfileSerializationRoundtripTests
     {
         var profile = new Profile { Name = "x" };
         var json = JsonSerializer.Serialize(profile, JsonOptions.Default);
-        json.Should().Contain("\"schemaVersion\": 2");
+        json.Should().Contain($"\"schemaVersion\": {Profile.CurrentSchemaVersion}");
     }
 }

@@ -71,7 +71,7 @@ public class ChainValidatorTests
     {
         var r = ChainValidator.Validate(
             KeySrc(),
-            new Modifier[] { SensitivityModifier.Default },
+            new Modifier[] { OutputScaleModifier.Default },
             StickTgt());
         r.IsValid.Should().BeFalse();
         r.ErrorIndex.Should().Be(0);
@@ -110,7 +110,7 @@ public class ChainValidatorTests
             new Modifier[]
             {
                 StickDynamicsModifier.DefaultVelocity,
-                new SensitivityModifier(1.5),
+                new OutputScaleModifier(1.5),
                 new InnerDeadzoneModifier(0.1),
                 new OuterSaturationModifier(0.05),
                 new ResponseCurveModifier(1.5),

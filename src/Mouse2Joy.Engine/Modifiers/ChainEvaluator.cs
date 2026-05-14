@@ -28,7 +28,10 @@ public sealed class ChainEvaluator
         _evaluators = new List<IModifierEvaluator>(modifiers.Count);
         _modifierConfigs = modifiers;
         foreach (var m in modifiers)
+        {
             _evaluators.Add(ChainBuilder.BuildEvaluator(m));
+        }
+
         var validation = ChainValidator.Validate(source, modifiers, target);
         IsValid = validation.IsValid;
         InvalidReason = validation.ErrorMessage;
@@ -44,7 +47,9 @@ public sealed class ChainEvaluator
     {
         _adapter.Reset();
         foreach (var e in _evaluators)
+        {
             e.Reset();
+        }
     }
 
     public Signal EndOfTick(double dt)
@@ -54,7 +59,10 @@ public sealed class ChainEvaluator
         {
             var modifier = _modifierConfigs[i];
             if (!modifier.Enabled)
+            {
                 continue;
+            }
+
             sig = _evaluators[i].Evaluate(in sig, dt);
         }
         return sig;
@@ -68,10 +76,19 @@ public sealed class ChainEvaluator
     /// </summary>
     public bool ConfigMatches(IReadOnlyList<Modifier> modifiers)
     {
-        if (_modifierConfigs.Count != modifiers.Count) return false;
+        if (_modifierConfigs.Count != modifiers.Count)
+        {
+            return false;
+        }
+
         for (int i = 0; i < modifiers.Count; i++)
+        {
             if (!Equals(_modifierConfigs[i], modifiers[i]))
+            {
                 return false;
+            }
+        }
+
         return true;
     }
 }

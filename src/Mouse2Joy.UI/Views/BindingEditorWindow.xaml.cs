@@ -1,10 +1,8 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using Mouse2Joy.Persistence;
 using Mouse2Joy.Persistence.Models;
 using Mouse2Joy.UI.Controls;
-using Mouse2Joy.UI.ViewModels;
 using Mouse2Joy.UI.ViewModels.Editor;
 
 namespace Mouse2Joy.UI.Views;
@@ -31,7 +29,9 @@ public partial class BindingEditorWindow : Window
 
         // Populate ButtonCombo with the GamepadButton enum values.
         foreach (var name in Enum.GetNames(typeof(GamepadButton)))
+        {
             ButtonCombo.Items.Add(new ComboBoxItem { Content = name });
+        }
 
         // Populate Add Modifier dropdown.
         AddModifierCombo.ItemsSource = ModifierCatalog.AllEntries;
@@ -53,7 +53,7 @@ public partial class BindingEditorWindow : Window
 
         // Label two-way wiring.
         LabelTb.Text = _vm.Label ?? string.Empty;
-        LabelTb.TextChanged += (_, _) => { if (!_suppressUpdates) _vm.Label = LabelTb.Text; };
+        LabelTb.TextChanged += (_, _) => { if (!_suppressUpdates) { _vm.Label = LabelTb.Text; } };
 
         // Suppress two-way wiring.
         SuppressCb.IsChecked = _vm.SuppressInput;
@@ -65,12 +65,19 @@ public partial class BindingEditorWindow : Window
         _vm.Modifiers.CollectionChanged += (_, _) => RefreshPreview();
         // Subscribe to existing cards for modifier param changes.
         foreach (var card in _vm.Modifiers)
+        {
             card.ModifierChanged += _ => RefreshPreview();
+        }
+
         _vm.Modifiers.CollectionChanged += (_, e) =>
         {
             if (e.NewItems != null)
+            {
                 foreach (ModifierCardViewModel c in e.NewItems)
+                {
                     c.ModifierChanged += _ => RefreshPreview();
+                }
+            }
         };
 
         // Initial load: populate sub-pickers from current source/target.
@@ -95,7 +102,9 @@ public partial class BindingEditorWindow : Window
         else if (e.PropertyName == nameof(BindingEditorViewModel.SuppressInput))
         {
             if (SuppressCb.IsChecked != _vm.SuppressInput)
+            {
                 SuppressCb.IsChecked = _vm.SuppressInput;
+            }
         }
     }
 
@@ -143,7 +152,11 @@ public partial class BindingEditorWindow : Window
 
     private void CommitSource()
     {
-        if (_suppressUpdates) return;
+        if (_suppressUpdates)
+        {
+            return;
+        }
+
         InputSource src = SourceKindCombo.SelectedIndex switch
         {
             0 => new MouseAxisSource((MouseAxis)Math.Max(0, MouseAxisCombo.SelectedIndex)),
@@ -157,7 +170,11 @@ public partial class BindingEditorWindow : Window
 
     private void CommitTarget()
     {
-        if (_suppressUpdates) return;
+        if (_suppressUpdates)
+        {
+            return;
+        }
+
         OutputTarget tgt = TargetKindCombo.SelectedIndex switch
         {
             0 => new StickAxisTarget((Stick)Math.Max(0, StickCombo.SelectedIndex), (AxisComponent)Math.Max(0, StickAxisCombo.SelectedIndex)),
@@ -198,32 +215,44 @@ public partial class BindingEditorWindow : Window
     /// </summary>
     private void UpdateSuppressDefault()
     {
-        if (_suppressUpdates) return;
+        if (_suppressUpdates)
+        {
+            return;
+        }
+
         SuppressCb.IsChecked = _vm.SuppressDefault;
     }
 
     private void OnAddModifier(object sender, RoutedEventArgs e)
     {
         if (AddModifierCombo.SelectedItem is ModifierCatalog.Entry entry)
+        {
             _vm.AddModifier(entry);
+        }
     }
 
     private void OnMoveUp(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is ModifierCardViewModel card)
+        {
             _vm.MoveUp(_vm.Modifiers.IndexOf(card));
+        }
     }
 
     private void OnMoveDown(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is ModifierCardViewModel card)
+        {
             _vm.MoveDown(_vm.Modifiers.IndexOf(card));
+        }
     }
 
     private void OnRemove(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is ModifierCardViewModel card)
+        {
             _vm.RemoveAt(_vm.Modifiers.IndexOf(card));
+        }
     }
 
     private void OnOk(object sender, RoutedEventArgs e)

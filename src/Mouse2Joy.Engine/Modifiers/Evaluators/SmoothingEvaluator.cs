@@ -30,7 +30,10 @@ internal sealed class SmoothingEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var x = input.ScalarValue;
-        if (double.IsNaN(x)) x = 0;
+        if (double.IsNaN(x))
+        {
+            x = 0;
+        }
 
         var tau = _config.TimeConstantSeconds;
         if (tau <= 0 || dt <= 0)

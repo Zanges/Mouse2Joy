@@ -19,7 +19,9 @@ public sealed class ProfileStore
                 var json = File.ReadAllText(file);
                 var profile = DeserializeProfile(json);
                 if (profile is not null && !string.IsNullOrWhiteSpace(profile.Name))
+                {
                     results.Add(profile);
+                }
             }
             catch (JsonException)
             {
@@ -33,7 +35,10 @@ public sealed class ProfileStore
     {
         var path = AppPaths.ProfileFilePath(name);
         if (!File.Exists(path))
+        {
             return null;
+        }
+
         var json = File.ReadAllText(path);
         return DeserializeProfile(json);
     }
@@ -55,7 +60,9 @@ public sealed class ProfileStore
     {
         var path = AppPaths.ProfileFilePath(name);
         if (File.Exists(path))
+        {
             File.Delete(path);
+        }
     }
 
     public void Rename(string oldName, string newName)
@@ -64,7 +71,9 @@ public sealed class ProfileStore
         var renamed = profile with { Name = newName };
         Save(renamed);
         if (!string.Equals(AppPaths.SanitizeProfileFileName(oldName), AppPaths.SanitizeProfileFileName(newName), StringComparison.OrdinalIgnoreCase))
+        {
             Delete(oldName);
+        }
     }
 
     /// <summary>
@@ -103,7 +112,11 @@ public sealed class ProfileStore
         if (version < 2)
         {
             var legacy = JsonSerializer.Deserialize<LegacyProfile>(json, JsonOptions.Default);
-            if (legacy is null) return null;
+            if (legacy is null)
+            {
+                return null;
+            }
+
             var v2 = V1ToV2.Migrate(legacy);
             json = JsonSerializer.Serialize(v2, JsonOptions.Default);
             version = 2;
@@ -113,7 +126,11 @@ public sealed class ProfileStore
         if (version < 3)
         {
             var node = JsonNode.Parse(json);
-            if (node is null) return null;
+            if (node is null)
+            {
+                return null;
+            }
+
             V2ToV3.Apply(node);
             json = node.ToJsonString(JsonOptions.Default);
             version = 3;
@@ -123,7 +140,11 @@ public sealed class ProfileStore
         if (version < 4)
         {
             var node = JsonNode.Parse(json);
-            if (node is null) return null;
+            if (node is null)
+            {
+                return null;
+            }
+
             V3ToV4.Apply(node);
             json = node.ToJsonString(JsonOptions.Default);
             version = 4;
@@ -133,7 +154,11 @@ public sealed class ProfileStore
         if (version < 5)
         {
             var node = JsonNode.Parse(json);
-            if (node is null) return null;
+            if (node is null)
+            {
+                return null;
+            }
+
             V4ToV5.Apply(node);
             json = node.ToJsonString(JsonOptions.Default);
             version = 5;
@@ -143,7 +168,11 @@ public sealed class ProfileStore
         if (version < 6)
         {
             var node = JsonNode.Parse(json);
-            if (node is null) return null;
+            if (node is null)
+            {
+                return null;
+            }
+
             V5ToV6.Apply(node);
             json = node.ToJsonString(JsonOptions.Default);
             version = 6;
@@ -153,7 +182,11 @@ public sealed class ProfileStore
         if (version < 7)
         {
             var node = JsonNode.Parse(json);
-            if (node is null) return null;
+            if (node is null)
+            {
+                return null;
+            }
+
             V6ToV7.Apply(node);
             json = node.ToJsonString(JsonOptions.Default);
             version = 7;
@@ -168,7 +201,9 @@ public sealed class ProfileStore
         {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("schemaVersion", out var v) && v.TryGetInt32(out var n))
+            {
                 return n;
+            }
         }
         catch (JsonException)
         {

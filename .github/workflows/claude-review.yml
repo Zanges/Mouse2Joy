@@ -1,0 +1,186 @@
+name: Claude PR review
+
+# Multi-agent Claude review of substantive PRs after CI passes.
+#
+# Listens for the CI workflow's completion. Gates on a set of programmatic
+# checks (CI success, not Dependabot, not draft, no skip label, non-trivial
+# diff that isn't docs/dep-only). If the gate passes, runs 8 reviewer agents
+# in parallel via the Anthropic SDK and posts ONE consolidated review.
+#
+# Requires repo secret ANTHROPIC_API_KEY. If absent, the review job runs but
+# posts a one-line "skipped" comment instead of failing.
+#
+# workflow_run runs on the default branch's version of this file, so changes
+# to the workflow itself only take effect after merging to main.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: claude-review-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Decide whether to review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_review: ${{ steps.decide.outputs.should_review }}
+      pr_number: ${{ steps.decide.outputs.pr_number }}
+      pr_head_sha: ${{ steps.decide.outputs.pr_head_sha }}
+      pr_base_sha: ${{ steps.decide.outputs.pr_base_sha }}
+      pr_title: ${{ steps.decide.outputs.pr_title }}
+      reason: ${{ steps.decide.outputs.reason }}
+
+    steps:
+      - name: Resolve PR + gate
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_EVENT: ${{ github.event.workflow_run.event }}
+          PR_NUMBER_RAW: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+
+          emit() {
+            echo "should_review=$1" >> "$GITHUB_OUTPUT"
+            echo "reason=$2" >> "$GITHUB_OUTPUT"
+            echo "Decision: $1 ($2)"
+          }
+
+          if [ "$CI_CONCLUSION" != "success" ]; then
+            emit false "CI conclusion was '$CI_CONCLUSION'"; exit 0
+          fi
+          if [ "$CI_EVENT" != "pull_request" ]; then
+            emit false "CI run event was '$CI_EVENT', not pull_request"; exit 0
+          fi
+          if [ "${PR_NUMBER_RAW:-}" = "" ] || [ "$PR_NUMBER_RAW" = "null" ]; then
+            emit false "no PR attached to the CI run"; exit 0
+          fi
+
+          pr_number="$PR_NUMBER_RAW"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+          pr_json=$(gh pr view "$pr_number" --repo "$REPO" \
+            --json author,isDraft,labels,headRefOid,baseRefOid,title,additions,deletions,files)
+
+          author=$(echo "$pr_json" | jq -r '.author.login')
+          is_draft=$(echo "$pr_json" | jq -r '.isDraft')
+          head_sha=$(echo "$pr_json" | jq -r '.headRefOid')
+          base_sha=$(echo "$pr_json" | jq -r '.baseRefOid')
+          title=$(echo "$pr_json" | jq -r '.title')
+          additions=$(echo "$pr_json" | jq -r '.additions')
+          deletions=$(echo "$pr_json" | jq -r '.deletions')
+          has_skip=$(echo "$pr_json" | jq -r '[.labels[].name] | index("skip-claude-review") != null')
+
+          echo "pr_head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "pr_base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          # Title may contain quotes etc; emit via a delimited heredoc.
+          {
+            echo "pr_title<<__PR_TITLE_EOF__"
+            echo "$title"
+            echo "__PR_TITLE_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$author" = "dependabot[bot]" ] || [ "$author" = "dependabot" ]; then
+            emit false "PR author is Dependabot"; exit 0
+          fi
+          if [ "$is_draft" = "true" ]; then
+            emit false "PR is in draft state"; exit 0
+          fi
+          if [ "$has_skip" = "true" ]; then
+            emit false "PR has skip-claude-review label"; exit 0
+          fi
+
+          total_changes=$(( additions + deletions ))
+          if [ "$total_changes" -lt 10 ]; then
+            emit false "diff is only $total_changes lines (< 10)"; exit 0
+          fi
+
+          # Skip if every changed file is docs or a pure dependency-bump shape.
+          # `files` in gh's PR view JSON is [{path, additions, deletions}].
+          paths=$(echo "$pr_json" | jq -r '.files[].path')
+          all_skippable=true
+          while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            case "$p" in
+              ai-docs/*|*.md|LICENSE|Directory.Packages.props|global.json)
+                ;;
+              *.csproj)
+                # Treat csproj changes as skippable only if every changed
+                # line in this csproj is a PackageReference line. Anything
+                # else (target framework, custom MSBuild) is real and worth
+                # reviewing.
+                diff_body=$(gh pr diff "$pr_number" --repo "$REPO" -- "$p" 2>/dev/null || true)
+                non_pkg=$(echo "$diff_body" | awk '
+                  /^[+-][^+-]/ {
+                    line=$0
+                    sub(/^[+-]/,"",line)
+                    # Ignore whitespace-only lines.
+                    gsub(/[[:space:]]/,"",line); if (line=="") next
+                    if (line !~ /<PackageReference/ && line !~ /<\/PackageReference>/ && line !~ /Version=/) print line
+                  }
+                ' | wc -l)
+                if [ "$non_pkg" -gt 0 ]; then
+                  all_skippable=false; break
+                fi
+                ;;
+              *)
+                all_skippable=false; break
+                ;;
+            esac
+          done <<< "$paths"
+
+          if [ "$all_skippable" = "true" ]; then
+            emit false "all changed files are docs / dependency-only"; exit 0
+          fi
+
+          emit true "passed all gates"
+
+  review:
+    name: Run multi-agent review
+    needs: gate
+    if: needs.gate.outputs.should_review == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.pr_head_sha }}
+          # Need history so the script can read the base SHA for diffs.
+          fetch-depth: 0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: .github/claude-review/package-lock.json
+
+      - name: Install review-script dependencies
+        working-directory: .github/claude-review
+        run: npm ci
+
+      - name: Run review
+        working-directory: .github/claude-review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ needs.gate.outputs.pr_head_sha }}
+          PR_BASE_SHA: ${{ needs.gate.outputs.pr_base_sha }}
+          PR_TITLE: ${{ needs.gate.outputs.pr_title }}
+        run: npm start

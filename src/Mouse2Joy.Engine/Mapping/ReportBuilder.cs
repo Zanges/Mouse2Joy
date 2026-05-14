@@ -18,9 +18,20 @@ internal static class ReportBuilder
 
         XInputButtons buttons = XInputButtons.None;
         foreach (var kv in buckets.Buttons)
-            if (kv.Value) buttons |= MapButton(kv.Key);
+        {
+            if (kv.Value)
+            {
+                buttons |= MapButton(kv.Key);
+            }
+        }
+
         foreach (var kv in buckets.DPad)
-            if (kv.Value) buttons |= MapDPad(kv.Key);
+        {
+            if (kv.Value)
+            {
+                buttons |= MapDPad(kv.Key);
+            }
+        }
 
         return new XInputReport(Lx, Ly, Rx, Ry, Lt, Rt, buttons);
     }
@@ -33,8 +44,15 @@ internal static class ReportBuilder
 
     private static short ScaleAxis(double v)
     {
-        if (v >= 1.0) return short.MaxValue;
-        if (v <= -1.0) return short.MinValue;
+        if (v >= 1.0)
+        {
+            return short.MaxValue;
+        }
+
+        if (v <= -1.0)
+        {
+            return short.MinValue;
+        }
         // Symmetric mapping into the signed 16-bit range. We use 32767 as the
         // half-range so that 0 stays at 0; the negative side reaches -32767
         // (one short of MinValue) which is fine for XInput.
@@ -43,8 +61,16 @@ internal static class ReportBuilder
 
     private static byte ScaleTrigger(double v)
     {
-        if (v <= 0) return 0;
-        if (v >= 1.0) return 255;
+        if (v <= 0)
+        {
+            return 0;
+        }
+
+        if (v >= 1.0)
+        {
+            return 255;
+        }
+
         return (byte)Math.Round(v * 255.0);
     }
 

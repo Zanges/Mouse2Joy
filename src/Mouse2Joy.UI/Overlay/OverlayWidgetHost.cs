@@ -29,9 +29,17 @@ public sealed class OverlayWidgetHost
         _widgets.Clear();
         foreach (var (cfg, absX, absY) in entries)
         {
-            if (!cfg.Visible) continue;
+            if (!cfg.Visible)
+            {
+                continue;
+            }
+
             var widget = Create(cfg.Type);
-            if (widget is null) continue;
+            if (widget is null)
+            {
+                continue;
+            }
+
             widget.Config = cfg;
             widget.Opacity = 0.85;
             Canvas.SetLeft(widget, absX);
@@ -44,7 +52,9 @@ public sealed class OverlayWidgetHost
     public void Tick(EngineStateSnapshot snapshot)
     {
         for (int i = 0; i < _widgets.Count; i++)
+        {
             _widgets[i].RenderState(snapshot);
+        }
     }
 
     private static OverlayWidget? Create(string type) => type switch

@@ -22,6 +22,9 @@ internal static class V3ToV4
 {
     public static void Apply(JsonNode root)
     {
-        if (root is JsonObject ro) ro["schemaVersion"] = 4;
+        if (root is JsonObject ro)
+        {
+            ro["schemaVersion"] = 4;
+        }
     }
 }

@@ -31,7 +31,10 @@ internal sealed class ToggleEvaluator : IModifierEvaluator
     {
         var current = input.DigitalValue;
         if (current && !_prevInput)
+        {
             _outputHeld = !_outputHeld;
+        }
+
         _prevInput = current;
         return Signal.Digital(_outputHeld);
     }

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using Microsoft.Win32;
 using Mouse2Joy.Input.Native;
@@ -19,17 +18,24 @@ public static class DriverHealth
     public static InterceptionStatus Probe()
     {
         if (!IsAdministrator())
+        {
             return InterceptionStatus.AdminRequired;
+        }
 
         if (!IsDriverServiceRegistered())
+        {
             return InterceptionStatus.DriverNotInstalled;
+        }
 
         nint ctx = 0;
         try
         {
             ctx = InterceptionNative.CreateContext();
             if (ctx == 0)
+            {
                 return InterceptionStatus.DriverNotInstalled;
+            }
+
             return InterceptionStatus.Available;
         }
         catch (DllNotFoundException)
@@ -43,7 +49,9 @@ public static class DriverHealth
         finally
         {
             if (ctx != 0)
+            {
                 try { InterceptionNative.DestroyContext(ctx); } catch { /* ignore */ }
+            }
         }
     }
 

@@ -26,11 +26,18 @@ public sealed class LowLevelKeyboardBackend : IDisposable
     private const int WH_KEYBOARD_LL = 13;
     private const int HC_ACTION = 0;
     private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
     private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_SYSKEYUP = 0x0105;
     private const uint LLKHF_EXTENDED = 0x01;
+
+    // WM_KEYUP / WM_SYSKEYUP / LLKHF_INJECTED are kept as documentation of
+    // the WH_KEYBOARD_LL message set even though only the *DOWN halves are
+    // matched today. Removing them would obscure the protocol; future
+    // up-edge handling or injected-key filtering would re-introduce them.
+#pragma warning disable IDE0051
+    private const int WM_KEYUP = 0x0101;
+    private const int WM_SYSKEYUP = 0x0105;
     private const uint LLKHF_INJECTED = 0x10;
+#pragma warning restore IDE0051
 
     [StructLayout(LayoutKind.Sequential)]
     private struct KBDLLHOOKSTRUCT
@@ -78,7 +85,11 @@ public sealed class LowLevelKeyboardBackend : IDisposable
     /// <summary>Install the hook. Must be called on a thread with a message pump.</summary>
     public void Install()
     {
-        if (_hook != 0) return;
+        if (_hook != 0)
+        {
+            return;
+        }
+
         _proc = HookCallback;
         // hMod can be the current module's handle for thread-specific hooks; for
         // global low-level hooks user32 expects it but ignores the actual module.
@@ -98,13 +109,18 @@ public sealed class LowLevelKeyboardBackend : IDisposable
 
     public void SetSuppressionPredicate(Func<RawEvent, bool> shouldSwallow)
     {
-        lock (_predGate) _shouldSwallow = shouldSwallow ?? (_ => false);
+        lock (_predGate)
+        {
+            _shouldSwallow = shouldSwallow ?? (_ => false);
+        }
     }
 
     private nint HookCallback(int nCode, nint wParam, nint lParam)
     {
         if (nCode != HC_ACTION || _proc is null)
+        {
             return CallNextHookEx(_hook, nCode, wParam, lParam);
+        }
 
         try
         {
@@ -123,10 +139,17 @@ public sealed class LowLevelKeyboardBackend : IDisposable
             {
                 bool swallow;
                 Func<RawEvent, bool> pred;
-                lock (_predGate) pred = _shouldSwallow;
+                lock (_predGate)
+                {
+                    pred = _shouldSwallow;
+                }
+
                 try { swallow = pred(ev); }
                 catch { swallow = false; }
-                if (swallow) return 1;
+                if (swallow)
+                {
+                    return 1;
+                }
             }
         }
         catch (Exception ex)

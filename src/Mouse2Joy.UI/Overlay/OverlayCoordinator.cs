@@ -32,7 +32,10 @@ public sealed class OverlayCoordinator : IDisposable
     public void Apply(OverlayLayout layout)
     {
         _lastLayout = layout;
-        if (_shown) Render();
+        if (_shown)
+        {
+            Render();
+        }
     }
 
     public void Show()
@@ -40,18 +43,28 @@ public sealed class OverlayCoordinator : IDisposable
         _shown = true;
         EnsureWindowsForMonitors();
         Render();
-        foreach (var w in _windows.Values) w.Show();
+        foreach (var w in _windows.Values)
+        {
+            w.Show();
+        }
     }
 
     public void Hide()
     {
         _shown = false;
-        foreach (var w in _windows.Values) w.Hide();
+        foreach (var w in _windows.Values)
+        {
+            w.Hide();
+        }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         foreach (var w in _windows.Values)
@@ -67,7 +80,10 @@ public sealed class OverlayCoordinator : IDisposable
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             EnsureWindowsForMonitors();
-            if (_shown) Render();
+            if (_shown)
+            {
+                Render();
+            }
         });
     }
 
@@ -83,7 +99,10 @@ public sealed class OverlayCoordinator : IDisposable
                 w = new OverlayWindow(m);
                 w.AttachEngine(_engine);
                 _windows[m.Index] = w;
-                if (_shown) w.Show();
+                if (_shown)
+                {
+                    w.Show();
+                }
             }
             else
             {
@@ -117,8 +136,15 @@ public sealed class OverlayCoordinator : IDisposable
     /// </summary>
     private void Render()
     {
-        if (_lastLayout is null) return;
-        if (_windows.Count == 0) return;
+        if (_lastLayout is null)
+        {
+            return;
+        }
+
+        if (_windows.Count == 0)
+        {
+            return;
+        }
 
         var byId = _lastLayout.Widgets
             .GroupBy(w => w.Id)
@@ -130,7 +156,11 @@ public sealed class OverlayCoordinator : IDisposable
         var resolved = new Dictionary<string, ResolvedRect>();
         foreach (var w in _lastLayout.Widgets)
         {
-            if (resolved.ContainsKey(w.Id)) continue;
+            if (resolved.ContainsKey(w.Id))
+            {
+                continue;
+            }
+
             Resolve(w, byId, resolved);
         }
 
@@ -140,10 +170,17 @@ public sealed class OverlayCoordinator : IDisposable
         var buckets = new Dictionary<int, List<(WidgetConfig, double, double)>>();
         foreach (var w in _lastLayout.Widgets)
         {
-            if (!resolved.TryGetValue(w.Id, out var r)) continue;
+            if (!resolved.TryGetValue(w.Id, out var r))
+            {
+                continue;
+            }
+
             var monIdx = _windows.ContainsKey(r.Mon) ? r.Mon : fallbackIndex;
             if (!buckets.TryGetValue(monIdx, out var list))
+            {
                 buckets[monIdx] = list = new();
+            }
+
             list.Add((w, r.X, r.Y));
         }
 
@@ -159,7 +196,10 @@ public sealed class OverlayCoordinator : IDisposable
         IReadOnlyDictionary<string, WidgetConfig> byId,
         Dictionary<string, ResolvedRect> memo)
     {
-        if (memo.TryGetValue(cfg.Id, out var done)) return done;
+        if (memo.TryGetValue(cfg.Id, out var done))
+        {
+            return done;
+        }
 
         // Width/Height live directly on the config now — no scale multiplier.
         // Auto-sized widgets (Status text widget) ignore the config dims and
@@ -230,7 +270,10 @@ public sealed class OverlayCoordinator : IDisposable
     private Size LookupMonitorSize(int index)
     {
         if (_windows.TryGetValue(index, out var w))
+        {
             return new Size(w.Width, w.Height);
+        }
+
         if (_windows.Count > 0)
         {
             var any = _windows.Values.First();

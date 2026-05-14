@@ -36,7 +36,10 @@ internal sealed class AutoFireEvaluator : IModifierEvaluator
         }
         var period = 1.0 / _config.Hz;
         _phase += dt;
-        if (_phase >= period) _phase -= period;
+        if (_phase >= period)
+        {
+            _phase -= period;
+        }
         // First half of the period: true; second half: false. Net duty = 50%.
         return Signal.Digital(_phase < period * 0.5);
     }

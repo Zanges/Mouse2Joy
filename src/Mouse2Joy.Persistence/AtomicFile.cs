@@ -10,14 +10,20 @@ internal static class AtomicFile
     {
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
+        {
             Directory.CreateDirectory(dir);
+        }
 
         var tempPath = path + ".tmp";
         File.WriteAllText(tempPath, contents);
 
         if (File.Exists(path))
+        {
             File.Replace(tempPath, path, destinationBackupFileName: null, ignoreMetadataErrors: true);
+        }
         else
+        {
             File.Move(tempPath, path);
+        }
     }
 }

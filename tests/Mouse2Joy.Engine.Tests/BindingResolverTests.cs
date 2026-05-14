@@ -1,8 +1,5 @@
 using FluentAssertions;
-using Mouse2Joy.Engine;
 using Mouse2Joy.Engine.Mapping;
-using Mouse2Joy.Engine.Modifiers;
-using Mouse2Joy.Engine.Modifiers.Evaluators;
 using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.Engine.Tests;

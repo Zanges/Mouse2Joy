@@ -22,15 +22,18 @@ public sealed class BackgroundWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
 
         var fill = ReadColorBrush("color", BgBrush);
         var radius = Math.Clamp(ReadInt("cornerRadius", 6), 0, 24);
 
-        dc.DrawRoundedRectangle(fill, null, new Rect(0, 0, w, h), radius, radius);
+        drawingContext.DrawRoundedRectangle(fill, null, new Rect(0, 0, w, h), radius, radius);
     }
 }

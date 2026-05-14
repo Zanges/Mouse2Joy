@@ -42,7 +42,9 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
         for (int i = 1; i < sorted.Length; i++)
         {
             if (sorted[i].X - sorted[i - 1].X < 1e-6)
+            {
                 sorted[i] = sorted[i] with { X = sorted[i - 1].X + 1e-6 };
+            }
         }
 
         _sortedPoints = sorted;
@@ -61,15 +63,25 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var x = input.ScalarValue;
-        if (double.IsNaN(x)) return Signal.ZeroScalar;
+        if (double.IsNaN(x))
+        {
+            return Signal.ZeroScalar;
+        }
 
         // Defensive fallback: with fewer than 2 points there's nothing to
         // interpolate. Pass the input through (clamped).
         if (_sortedPoints.Length < 2)
         {
             var clamped = x;
-            if (clamped > 1.0) clamped = 1.0;
-            else if (clamped < -1.0) clamped = -1.0;
+            if (clamped > 1.0)
+            {
+                clamped = 1.0;
+            }
+            else if (clamped < -1.0)
+            {
+                clamped = -1.0;
+            }
+
             return Signal.Scalar(clamped);
         }
 
@@ -79,21 +91,36 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
         {
             sign = x < 0 ? -1.0 : 1.0;
             sample = Math.Abs(x);
-            if (sample > 1.0) sample = 1.0;
+            if (sample > 1.0)
+            {
+                sample = 1.0;
+            }
         }
         else
         {
             sign = 1.0;
             sample = x;
-            if (sample > 1.0) sample = 1.0;
-            else if (sample < -1.0) sample = -1.0;
+            if (sample > 1.0)
+            {
+                sample = 1.0;
+            }
+            else if (sample < -1.0)
+            {
+                sample = -1.0;
+            }
         }
 
         var output = EvaluateSpline(sample);
 
         // Clamp final output to legal scalar range.
-        if (output > 1.0) output = 1.0;
-        else if (output < -1.0) output = -1.0;
+        if (output > 1.0)
+        {
+            output = 1.0;
+        }
+        else if (output < -1.0)
+        {
+            output = -1.0;
+        }
 
         return Signal.Scalar(sign * output);
     }
@@ -115,7 +142,9 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
         // Find the segment containing x. Linear search is fine for ≤7 points.
         int i = 0;
         while (i < last && x > _sortedPoints[i + 1].X)
+        {
             i++;
+        }
 
         var x0 = _sortedPoints[i].X;
         var x1 = _sortedPoints[i + 1].X;
@@ -140,7 +169,7 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
 
     /// <summary>
     /// Computes monotonicity-preserving tangents at each control point per
-    /// Fritsch & Carlson 1980. Standard algorithm:
+    /// Fritsch &amp; Carlson 1980. Standard algorithm:
     ///
     /// <list type="number">
     ///   <item>Initial tangents are secant slopes (averaged at interior
@@ -158,17 +187,25 @@ internal sealed class ParametricCurveEvaluator : IModifierEvaluator
     {
         int n = pts.Length;
         var tangents = new double[n];
-        if (n < 2) return tangents;
+        if (n < 2)
+        {
+            return tangents;
+        }
 
         // Step 1: secant slopes between consecutive points.
         var delta = new double[n - 1];
         for (int i = 0; i < n - 1; i++)
+        {
             delta[i] = (pts[i + 1].Y - pts[i].Y) / (pts[i + 1].X - pts[i].X);
+        }
 
         // Step 2: initial tangents — averages of adjacent secants.
         tangents[0] = delta[0];
         for (int i = 1; i < n - 1; i++)
+        {
             tangents[i] = (delta[i - 1] + delta[i]) / 2.0;
+        }
+
         tangents[n - 1] = delta[n - 2];
 
         // Step 3: monotonicity correction. For each segment, scale the

@@ -31,7 +31,9 @@ public partial class MainWindow : Window
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.SelectedProfile))
+        {
             RebuildBindingRows();
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -63,7 +65,10 @@ public partial class MainWindow : Window
         // If the app is already shutting down (Quit button or tray Quit triggered
         // Application.Current.Shutdown(), which then closes this window via App.OnExit),
         // never cancel — let the window close so shutdown completes.
-        if (_isShuttingDown) return;
+        if (_isShuttingDown)
+        {
+            return;
+        }
 
         if (_vm.Settings.CloseButtonMinimizesToTray)
         {
@@ -89,36 +94,66 @@ public partial class MainWindow : Window
 
     private void OnAddBinding(object sender, RoutedEventArgs e)
     {
-        if (_vm.SelectedProfile is null) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
         var dlg = new BindingEditorWindow { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        if (dlg.ShowDialog() != true || dlg.Result is null)
+        {
+            return;
+        }
 
         _vm.SelectedProfile.Bindings.Add(dlg.Result);
         RebuildBindingRows();
         if (!TrySaveAndReport())
+        {
             RollbackBindingsRefresh(() => _vm.SelectedProfile?.Bindings.Remove(dlg.Result));
+        }
     }
 
     private void OnEditBinding(object sender, RoutedEventArgs e)
     {
-        if (_vm.SelectedProfile is null) return;
-        if (BindingsTable.SelectedItem is not BindingRowViewModel row) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
+        if (BindingsTable.SelectedItem is not BindingRowViewModel row)
+        {
+            return;
+        }
+
         EditBindingById(row.Id);
     }
 
     private void OnDeleteBinding(object sender, RoutedEventArgs e)
     {
-        if (_vm.SelectedProfile is null) return;
-        if (BindingsTable.SelectedItem is not BindingRowViewModel row) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
+        if (BindingsTable.SelectedItem is not BindingRowViewModel row)
+        {
+            return;
+        }
 
         var bindings = _vm.SelectedProfile.Bindings;
         var idx = bindings.FindIndex(b => b.Id == row.Id);
-        if (idx < 0) return;
+        if (idx < 0)
+        {
+            return;
+        }
+
         var sel = bindings[idx];
         bindings.RemoveAt(idx);
         RebuildBindingRows();
         if (!TrySaveAndReport())
+        {
             RollbackBindingsRefresh(() => _vm.SelectedProfile?.Bindings.Insert(idx, sel));
+        }
     }
 
     /// <summary>
@@ -129,11 +164,22 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnDuplicateBinding(object sender, RoutedEventArgs e)
     {
-        if (_vm.SelectedProfile is null) return;
-        if (BindingsTable.SelectedItem is not BindingRowViewModel row) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
+        if (BindingsTable.SelectedItem is not BindingRowViewModel row)
+        {
+            return;
+        }
+
         var bindings = _vm.SelectedProfile.Bindings;
         var sourceIdx = bindings.FindIndex(b => b.Id == row.Id);
-        if (sourceIdx < 0) return;
+        if (sourceIdx < 0)
+        {
+            return;
+        }
 
         var clone = bindings[sourceIdx] with { Id = Guid.NewGuid() };
         bindings.Add(clone);
@@ -161,31 +207,52 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnBindingRowClicked(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement fe || fe.Tag is not BindingRowViewModel row) return;
+        if (sender is not FrameworkElement fe || fe.Tag is not BindingRowViewModel row)
+        {
+            return;
+        }
+
         EditBindingById(row.Id);
     }
 
     private void EditBindingById(Guid id)
     {
-        if (_vm.SelectedProfile is null) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
         var bindings = _vm.SelectedProfile.Bindings;
         var idx = bindings.FindIndex(b => b.Id == id);
-        if (idx < 0) return;
+        if (idx < 0)
+        {
+            return;
+        }
+
         var sel = bindings[idx];
 
         var dlg = new BindingEditorWindow(sel) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        if (dlg.ShowDialog() != true || dlg.Result is null)
+        {
+            return;
+        }
 
         var replacement = dlg.Result with { Id = sel.Id };
         bindings[idx] = replacement;
         RebuildBindingRows();
         if (!TrySaveAndReport())
-            RollbackBindingsRefresh(() => { if (_vm.SelectedProfile is not null) _vm.SelectedProfile.Bindings[idx] = sel; });
+        {
+            RollbackBindingsRefresh(() => { if (_vm.SelectedProfile is not null) { _vm.SelectedProfile.Bindings[idx] = sel; } });
+        }
     }
 
     private bool TrySaveAndReport()
     {
-        if (_vm.TrySaveSelectedProfile(out var error)) return true;
+        if (_vm.TrySaveSelectedProfile(out var error))
+        {
+            return true;
+        }
+
         MessageBox.Show(this, error ?? "Could not save profile.", "Mouse2Joy",
             MessageBoxButton.OK, MessageBoxImage.Warning);
         return false;
@@ -207,18 +274,31 @@ public partial class MainWindow : Window
     {
         _bindingRows.Clear();
         var profile = _vm.SelectedProfile;
-        if (profile is null) return;
+        if (profile is null)
+        {
+            return;
+        }
 
         foreach (var b in profile.Bindings)
+        {
             _bindingRows.Add(new BindingRowViewModel(b, OnRowEnabledChanged));
+        }
     }
 
     private void OnRowEnabledChanged(BindingRowViewModel row)
     {
-        if (_vm.SelectedProfile is null) return;
+        if (_vm.SelectedProfile is null)
+        {
+            return;
+        }
+
         var bindings = _vm.SelectedProfile.Bindings;
         var idx = bindings.FindIndex(b => b.Id == row.Id);
-        if (idx < 0) return;
+        if (idx < 0)
+        {
+            return;
+        }
+
         var prev = bindings[idx];
         bindings[idx] = prev with { Enabled = row.Enabled };
         if (!TrySaveAndReport())
@@ -256,7 +336,10 @@ public partial class MainWindow : Window
         var monitors = MonitorEnumerator.Enumerate();
         var siblings = _vm.Settings.Overlay.Widgets;
         var dlg = new WidgetEditorWindow(existing: null, siblings: siblings, monitors: monitors) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        if (dlg.ShowDialog() != true || dlg.Result is null)
+        {
+            return;
+        }
 
         var current = _vm.Settings.Overlay;
         var newList = current.Widgets.ToList();
@@ -273,13 +356,21 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnRowClicked(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement fe || fe.Tag is not WidgetRowViewModel row) return;
+        if (sender is not FrameworkElement fe || fe.Tag is not WidgetRowViewModel row)
+        {
+            return;
+        }
+
         OpenEditorForRow(row);
     }
 
     private void OnEditWidgetSelected(object sender, RoutedEventArgs e)
     {
-        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row) return;
+        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row)
+        {
+            return;
+        }
+
         OpenEditorForRow(row);
     }
 
@@ -287,16 +378,26 @@ public partial class MainWindow : Window
     {
         var current = _vm.Settings.Overlay.Widgets;
         var existing = current.FirstOrDefault(w => w.Id == row.Id);
-        if (existing is null) return;
+        if (existing is null)
+        {
+            return;
+        }
 
         var monitors = MonitorEnumerator.Enumerate();
         var siblings = current.Where(w => w.Id != existing.Id).ToList();
         var dlg = new WidgetEditorWindow(existing, siblings, monitors) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.Result is null) return;
+        if (dlg.ShowDialog() != true || dlg.Result is null)
+        {
+            return;
+        }
 
         var newList = current.ToList();
         var idx = newList.FindIndex(w => w.Id == existing.Id);
-        if (idx < 0) return;
+        if (idx < 0)
+        {
+            return;
+        }
+
         newList[idx] = dlg.Result;
         _vm.SaveSettings(_vm.Settings with { Overlay = _vm.Settings.Overlay with { Widgets = newList } });
         RebuildWidgetRows(newList);
@@ -305,7 +406,11 @@ public partial class MainWindow : Window
 
     private void OnDeleteWidgetSelected(object sender, RoutedEventArgs e)
     {
-        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row) return;
+        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row)
+        {
+            return;
+        }
+
         RemoveWidget(row);
     }
 
@@ -313,7 +418,10 @@ public partial class MainWindow : Window
     {
         var current = _vm.Settings.Overlay.Widgets.ToList();
         var target = current.FirstOrDefault(w => w.Id == row.Id);
-        if (target is null) return;
+        if (target is null)
+        {
+            return;
+        }
 
         var directChildren = current.Where(w => w.ParentId == target.Id).ToList();
         if (directChildren.Count > 0)
@@ -323,7 +431,10 @@ public partial class MainWindow : Window
                       "No = detach the children and keep them at their current screen positions.\n" +
                       "Cancel = do nothing.";
             var choice = MessageBox.Show(this, msg, "Remove widget", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-            if (choice == MessageBoxResult.Cancel) return;
+            if (choice == MessageBoxResult.Cancel)
+            {
+                return;
+            }
 
             if (choice == MessageBoxResult.Yes)
             {
@@ -340,12 +451,22 @@ public partial class MainWindow : Window
                     .ToDictionary(m => m.Index, m => m.BoundsDip.Size);
                 var resolved = new Dictionary<string, (double X, double Y, int Mon)>();
                 foreach (var w in current)
+                {
                     ResolveRenderTopLeft(w, current, monitorSizes, resolved);
+                }
 
                 for (int i = 0; i < current.Count; i++)
                 {
-                    if (current[i].ParentId != target.Id) continue;
-                    if (!resolved.TryGetValue(current[i].Id, out var r)) continue;
+                    if (current[i].ParentId != target.Id)
+                    {
+                        continue;
+                    }
+
+                    if (!resolved.TryGetValue(current[i].Id, out var r))
+                    {
+                        continue;
+                    }
+
                     current[i] = current[i] with
                     {
                         ParentId = null,
@@ -383,7 +504,10 @@ public partial class MainWindow : Window
         IReadOnlyDictionary<int, Size> monitorSizes,
         Dictionary<string, (double X, double Y, int Mon)> memo)
     {
-        if (memo.TryGetValue(w.Id, out var done)) return done;
+        if (memo.TryGetValue(w.Id, out var done))
+        {
+            return done;
+        }
 
         // Width/Height live directly on the config now — mirrors OverlayCoordinator.
         var size = new Size(Math.Max(0, w.Width), Math.Max(0, w.Height));
@@ -442,8 +566,18 @@ public partial class MainWindow : Window
         while (stack.Count > 0)
         {
             var id = stack.Pop();
-            if (!byParent.TryGetValue(id, out var children)) continue;
-            foreach (var c in children) if (set.Add(c)) stack.Push(c);
+            if (!byParent.TryGetValue(id, out var children))
+            {
+                continue;
+            }
+
+            foreach (var c in children)
+            {
+                if (set.Add(c))
+                {
+                    stack.Push(c);
+                }
+            }
         }
         return set;
     }
@@ -474,7 +608,11 @@ public partial class MainWindow : Window
     {
         var current = _vm.Settings.Overlay.Widgets.ToList();
         var idx = current.FindIndex(w => w.Id == row.Id);
-        if (idx < 0) return;
+        if (idx < 0)
+        {
+            return;
+        }
+
         current[idx] = current[idx] with { Visible = row.Visible };
         _vm.SaveSettings(_vm.Settings with { Overlay = _vm.Settings.Overlay with { Widgets = current } });
         _vm.ReloadOverlay();
@@ -491,10 +629,17 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnDuplicateWidget(object sender, RoutedEventArgs e)
     {
-        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row) return;
+        if (WidgetsTable.SelectedItem is not WidgetRowViewModel row)
+        {
+            return;
+        }
+
         var current = _vm.Settings.Overlay.Widgets.ToList();
         var source = current.FirstOrDefault(w => w.Id == row.Id);
-        if (source is null) return;
+        if (source is null)
+        {
+            return;
+        }
 
         var clone = source with
         {
@@ -510,7 +655,10 @@ public partial class MainWindow : Window
         // Cancelling the editor leaves the clone as-is — the duplicate is persisted
         // independently of the edit dialog's outcome.
         var cloneRow = _widgetRows.FirstOrDefault(r => r.Id == clone.Id);
-        if (cloneRow is not null) OpenEditorForRow(cloneRow);
+        if (cloneRow is not null)
+        {
+            OpenEditorForRow(cloneRow);
+        }
     }
 
     private void OnWidgetsSelectionChanged(object sender, SelectionChangedEventArgs e)

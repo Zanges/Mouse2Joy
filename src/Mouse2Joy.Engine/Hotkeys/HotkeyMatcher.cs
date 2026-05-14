@@ -20,13 +20,25 @@ public static class HotkeyMatcher
     public static bool Match(in RawEvent ev, HotkeyBinding? hotkey, KeyModifiers heldModifiers)
     {
         if (hotkey is null || !hotkey.IsAssigned)
+        {
             return false;
+        }
+
         if (ev.Kind != RawEventKind.Key || !ev.KeyDown)
+        {
             return false;
+        }
+
         if (!ev.Key.Equals(hotkey.Key))
+        {
             return false;
+        }
+
         if (heldModifiers != hotkey.Modifiers)
+        {
             return false;
+        }
+
         return true;
     }
 }
@@ -48,10 +60,16 @@ public sealed class HotkeyModifierTracker
     public void Observe(in RawEvent ev)
     {
         if (ev.Kind != RawEventKind.Key)
+        {
             return;
+        }
+
         var which = Classify(ev.Key);
         if (which == KeyModifiers.None)
+        {
             return;
+        }
+
         switch (which)
         {
             case KeyModifiers.Shift: _shift = ev.KeyDown; break;

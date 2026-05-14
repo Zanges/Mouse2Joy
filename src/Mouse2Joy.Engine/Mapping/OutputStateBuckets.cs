@@ -34,6 +34,8 @@ internal sealed class OutputStateBuckets
         // soft-mute starts clean (no held key signal, no integrated stick
         // deflection, no ramp residue).
         foreach (var c in Chains.Values)
+        {
             c.Reset();
+        }
     }
 }

@@ -49,7 +49,9 @@ internal sealed class BindingResolver
             // Source kind change must rebuild (different adapter); modifier
             // list value-equality covers the rest.
             if (!Equals(cached.Adapter.Source, b.Source) || !cached.ConfigMatches(b.Modifiers))
+            {
                 buckets.Chains.Remove(id);
+            }
         }
     }
 
@@ -65,9 +67,15 @@ internal sealed class BindingResolver
         for (int i = 0; i < bindings.Count; i++)
         {
             var b = bindings[i];
-            if (!b.Enabled || !b.SuppressInput) continue;
+            if (!b.Enabled || !b.SuppressInput)
+            {
+                continue;
+            }
+
             if (Matches(b.Source, in ev))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -79,10 +87,22 @@ internal sealed class BindingResolver
         for (int i = 0; i < bindings.Count; i++)
         {
             var b = bindings[i];
-            if (!b.Enabled) continue;
-            if (!Matches(b.Source, in ev)) continue;
+            if (!b.Enabled)
+            {
+                continue;
+            }
+
+            if (!Matches(b.Source, in ev))
+            {
+                continue;
+            }
+
             var chain = EnsureChain(b, buckets);
-            if (!chain.IsValid) continue;
+            if (!chain.IsValid)
+            {
+                continue;
+            }
+
             chain.Apply(in ev);
         }
     }
@@ -104,9 +124,16 @@ internal sealed class BindingResolver
 
         foreach (var binding in _profile.Bindings)
         {
-            if (!binding.Enabled) continue;
+            if (!binding.Enabled)
+            {
+                continue;
+            }
+
             var chain = EnsureChain(binding, buckets);
-            if (!chain.IsValid) continue;
+            if (!chain.IsValid)
+            {
+                continue;
+            }
 
             var sig = chain.EndOfTick(dt);
 
@@ -114,7 +141,11 @@ internal sealed class BindingResolver
             {
                 case StickAxisTarget sa:
                     {
-                        if (sig.Type != SignalType.Scalar) continue;
+                        if (sig.Type != SignalType.Scalar)
+                        {
+                            continue;
+                        }
+
                         var key = (sa.Stick, sa.Component);
                         var existing = stickFinal.TryGetValue(key, out var v) ? v : 0.0;
                         stickFinal[key] = Clamp1(existing + sig.ScalarValue);
@@ -122,25 +153,49 @@ internal sealed class BindingResolver
                     }
                 case TriggerTarget tt:
                     {
-                        if (sig.Type != SignalType.Scalar) continue;
+                        if (sig.Type != SignalType.Scalar)
+                        {
+                            continue;
+                        }
+
                         var folded = Math.Abs(sig.ScalarValue);
                         var existing = buckets.Triggers.TryGetValue(tt.Trigger, out var v) ? v : 0.0;
                         var sum = existing + folded;
-                        if (sum > 1.0) sum = 1.0;
+                        if (sum > 1.0)
+                        {
+                            sum = 1.0;
+                        }
+
                         buckets.Triggers[tt.Trigger] = sum;
                         break;
                     }
                 case ButtonTarget bt:
                     {
-                        if (sig.Type != SignalType.Digital) continue;
-                        if (!buckets.Buttons.TryGetValue(bt.Button, out var prev)) prev = false;
+                        if (sig.Type != SignalType.Digital)
+                        {
+                            continue;
+                        }
+
+                        if (!buckets.Buttons.TryGetValue(bt.Button, out var prev))
+                        {
+                            prev = false;
+                        }
+
                         buckets.Buttons[bt.Button] = prev || sig.DigitalValue;
                         break;
                     }
                 case DPadTarget dp:
                     {
-                        if (sig.Type != SignalType.Digital) continue;
-                        if (!buckets.DPad.TryGetValue(dp.Direction, out var prev)) prev = false;
+                        if (sig.Type != SignalType.Digital)
+                        {
+                            continue;
+                        }
+
+                        if (!buckets.DPad.TryGetValue(dp.Direction, out var prev))
+                        {
+                            prev = false;
+                        }
+
                         buckets.DPad[dp.Direction] = prev || sig.DigitalValue;
                         break;
                     }

@@ -23,9 +23,19 @@ internal sealed class RampDownEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var target = input.ScalarValue;
-        if (double.IsNaN(target)) target = 0;
-        if (target > 1.0) target = 1.0;
-        else if (target < -1.0) target = -1.0;
+        if (double.IsNaN(target))
+        {
+            target = 0;
+        }
+
+        if (target > 1.0)
+        {
+            target = 1.0;
+        }
+        else if (target < -1.0)
+        {
+            target = -1.0;
+        }
 
         var seconds = _config.SecondsFromFull <= 0 ? 0 : _config.SecondsFromFull;
         if (seconds <= 0 || dt <= 0)
@@ -50,8 +60,15 @@ internal sealed class RampDownEvaluator : IModifierEvaluator
             newVal = target;
         }
 
-        if (newVal > 1.0) newVal = 1.0;
-        else if (newVal < -1.0) newVal = -1.0;
+        if (newVal > 1.0)
+        {
+            newVal = 1.0;
+        }
+        else if (newVal < -1.0)
+        {
+            newVal = -1.0;
+        }
+
         _last = newVal;
         return Signal.Scalar(newVal);
     }

@@ -122,3 +122,14 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.cab
+
+# ---------------------------------------------------------------------------
+# Node tooling under .github/claude-review/
+# The CLI workflow runs `npm ci` against package-lock.json on every invocation;
+# node_modules must stay out of the repo. Keep package.json and package-lock.json
+# tracked (CI reads them) -- they're not matched by these rules.
+# ---------------------------------------------------------------------------
+node_modules/
+.github/claude-review/node_modules/
+# tsc / tsx artifacts (none expected, but defense in depth)
+.github/claude-review/*.tsbuildinfo

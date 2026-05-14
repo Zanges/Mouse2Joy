@@ -51,7 +51,9 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
             _suppressInput = initial.SuppressInput;
             Modifiers = new ObservableCollection<ModifierCardViewModel>();
             foreach (var m in initial.Modifiers)
+            {
                 AppendCard(m);
+            }
         }
 
         Modifiers.CollectionChanged += (_, _) => RevalidateAndRefresh();
@@ -74,7 +76,10 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
                 OnChanged(nameof(AutoLabel));
                 // If source-output type flipped, we need to reconsider converters.
                 if (ModifierTypes.GetSourceOutputType(_source) != oldType)
+                {
                     EnsureRequiredConverters();
+                }
+
                 Revalidate();
             }
         }
@@ -92,7 +97,10 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
                 OnChanged();
                 OnChanged(nameof(AutoLabel));
                 if (ModifierTypes.GetTargetInputType(_target) != oldType)
+                {
                     EnsureRequiredConverters();
+                }
+
                 Revalidate();
             }
         }
@@ -122,9 +130,17 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
         {
             if (_selectedCard != value)
             {
-                if (_selectedCard is not null) _selectedCard.Selected = false;
+                if (_selectedCard is not null)
+                {
+                    _selectedCard.Selected = false;
+                }
+
                 _selectedCard = value;
-                if (_selectedCard is not null) _selectedCard.Selected = true;
+                if (_selectedCard is not null)
+                {
+                    _selectedCard.Selected = true;
+                }
+
                 OnChanged();
                 OnChanged(nameof(SelectedProxy));
             }
@@ -215,7 +231,11 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
 
     public void RemoveAt(int index)
     {
-        if (index < 0 || index >= Modifiers.Count) return;
+        if (index < 0 || index >= Modifiers.Count)
+        {
+            return;
+        }
+
         var removed = Modifiers[index].Modifier;
         _userRemoved.Add(removed.GetType());
         Modifiers.RemoveAt(index);
@@ -224,20 +244,32 @@ public sealed class BindingEditorViewModel : INotifyPropertyChanged
 
     public void MoveUp(int index)
     {
-        if (index <= 0 || index >= Modifiers.Count) return;
+        if (index <= 0 || index >= Modifiers.Count)
+        {
+            return;
+        }
+
         Modifiers.Move(index, index - 1);
     }
 
     public void MoveDown(int index)
     {
-        if (index < 0 || index >= Modifiers.Count - 1) return;
+        if (index < 0 || index >= Modifiers.Count - 1)
+        {
+            return;
+        }
+
         Modifiers.Move(index, index + 1);
     }
 
     /// <summary>Replace the modifier at <paramref name="index"/> with a new immutable copy. Used by param edits.</summary>
     public void Replace(int index, Modifier next)
     {
-        if (index < 0 || index >= Modifiers.Count) return;
+        if (index < 0 || index >= Modifiers.Count)
+        {
+            return;
+        }
+
         Modifiers[index].Update(next);
     }
 

@@ -24,11 +24,22 @@ internal static class V2ToV3
         {
             foreach (var binding in bindings)
             {
-                if (binding?["modifiers"] is not JsonArray mods) continue;
+                if (binding?["modifiers"] is not JsonArray mods)
+                {
+                    continue;
+                }
+
                 foreach (var mod in mods)
                 {
-                    if (mod is not JsonObject obj) continue;
-                    if (obj["$kind"]?.GetValue<string>() != "sensitivity") continue;
+                    if (mod is not JsonObject obj)
+                    {
+                        continue;
+                    }
+
+                    if (obj["$kind"]?.GetValue<string>() != "sensitivity")
+                    {
+                        continue;
+                    }
 
                     obj["$kind"] = "outputScale";
                     if (obj["multiplier"] is { } m)
@@ -43,6 +54,9 @@ internal static class V2ToV3
         }
 
         // Stamp the new version so Save() persists in the new shape.
-        if (root is JsonObject ro) ro["schemaVersion"] = 3;
+        if (root is JsonObject ro)
+        {
+            ro["schemaVersion"] = 3;
+        }
     }
 }

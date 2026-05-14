@@ -22,7 +22,7 @@ public sealed class MouseActivityWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
@@ -36,20 +36,26 @@ public sealed class MouseActivityWidget : OverlayWidget
         var center = new Point(w / 2.0, h / 2.0);
 
         if (ReadBool("showBackground", false))
-            dc.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
-        dc.DrawEllipse(null, Outline, center, radius, radius);
+        {
+            drawingContext.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        }
+
+        drawingContext.DrawEllipse(null, Outline, center, radius, radius);
 
         // Display recent mouse delta as an arrow vector.
         var dx = Snapshot.RawMouseDeltaX;
         var dy = Snapshot.RawMouseDeltaY;
-        if (dx == 0 && dy == 0) return;
+        if (dx == 0 && dy == 0)
+        {
+            return;
+        }
 
         var mag = Math.Sqrt(dx * dx + dy * dy);
         var ux = dx / mag;
         var uy = dy / mag;
         var len = Math.Min(mag * 0.6, radius);
         var end = new Point(center.X + ux * len, center.Y + uy * len);
-        dc.DrawLine(new Pen(accent, 2 * refScale), center, end);
-        dc.DrawEllipse(accent, null, end, 3 * refScale, 3 * refScale);
+        drawingContext.DrawLine(new Pen(accent, 2 * refScale), center, end);
+        drawingContext.DrawEllipse(accent, null, end, 3 * refScale, 3 * refScale);
     }
 }

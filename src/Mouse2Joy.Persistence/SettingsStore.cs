@@ -9,7 +9,10 @@ public sealed class SettingsStore
     {
         AppPaths.EnsureDirectories();
         if (!File.Exists(AppPaths.SettingsFile))
+        {
             return new AppSettings();
+        }
+
         try
         {
             var json = File.ReadAllText(AppPaths.SettingsFile);

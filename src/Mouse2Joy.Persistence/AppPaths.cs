@@ -28,15 +28,23 @@ public static class AppPaths
     public static string SanitizeProfileFileName(string profileName)
     {
         if (string.IsNullOrWhiteSpace(profileName))
+        {
             return "_unnamed";
+        }
 
         var invalid = Path.GetInvalidFileNameChars();
         var sanitized = string.Concat(profileName.Select(c => invalid.Contains(c) ? '_' : c));
         sanitized = sanitized.Trim().TrimEnd('.');
         if (sanitized.Length == 0)
+        {
             sanitized = "_unnamed";
+        }
+
         if (sanitized.Length > 120)
+        {
             sanitized = sanitized[..120];
+        }
+
         return sanitized;
     }
 

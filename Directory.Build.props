@@ -8,5 +8,18 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <Deterministic>true</Deterministic>
+
+    <!-- Code quality: enable the curated Microsoft recommended analyzer set
+         for .NET 8 and enforce IDE0xxx style rules at build time. Specific
+         rule severities are tuned in the root .editorconfig. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Required for IDE0005 (remove unnecessary usings) to run at build time.
+         CS1591 (missing XML doc) stays in NoWarn so the resulting xml is
+         emitted without flooding warnings. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 </Project>

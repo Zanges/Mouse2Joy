@@ -23,9 +23,19 @@ internal sealed class RampUpEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var target = input.ScalarValue;
-        if (double.IsNaN(target)) target = 0;
-        if (target > 1.0) target = 1.0;
-        else if (target < -1.0) target = -1.0;
+        if (double.IsNaN(target))
+        {
+            target = 0;
+        }
+
+        if (target > 1.0)
+        {
+            target = 1.0;
+        }
+        else if (target < -1.0)
+        {
+            target = -1.0;
+        }
 
         // Decreases (toward 0 in magnitude, or sign change) pass through.
         // Increases in |x| are rate-limited.
@@ -55,8 +65,15 @@ internal sealed class RampUpEvaluator : IModifierEvaluator
             newVal = target;
         }
 
-        if (newVal > 1.0) newVal = 1.0;
-        else if (newVal < -1.0) newVal = -1.0;
+        if (newVal > 1.0)
+        {
+            newVal = 1.0;
+        }
+        else if (newVal < -1.0)
+        {
+            newVal = -1.0;
+        }
+
         _last = newVal;
         return Signal.Scalar(newVal);
     }

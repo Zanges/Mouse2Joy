@@ -1,0 +1,65 @@
+# Path-based label rules for actions/labeler@v5.
+# Each top-level key is a label name; the value is the match config.
+# A PR gets a label when any file in the diff matches the patterns.
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.UI/**"
+
+engine:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.Engine/**"
+
+input:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.Input/**"
+
+persistence:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.Persistence/**"
+
+virtualpad:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.VirtualPad/**"
+
+app:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/Mouse2Joy.App/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/dependabot.yml"
+          - ".github/labeler.yml"
+          - ".github/release.yml"
+          - ".github/claude-review/**"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "ai-docs/**"
+          - "**/*.md"
+          - "LICENSE"
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "build/**"
+          - "Directory.Build.props"
+          - "Directory.Packages.props"
+          - "global.json"
+          - "Mouse2Joy.sln"
+          - "**/*.csproj"
+          - "VERSION"

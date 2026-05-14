@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -112,7 +112,7 @@ jobs:
 
       - name: Setup .NET (from global.json)
         if: steps.changed.outputs.should_release == 'true'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -232,7 +232,7 @@ jobs:
 
       - name: Create GitHub Release (pre-release)
         if: steps.changed.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Mouse2Joy v${{ steps.version.outputs.version }}

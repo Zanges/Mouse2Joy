@@ -1,0 +1,266 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Optimization: only run when VERSION (or release infra) might have changed.
+      # We still verify the VERSION bump inside the job — paths is a fast pre-filter,
+      # not the gate.
+      - 'VERSION'
+      - 'src/**'
+      - 'build/installer/**'
+      - '.github/workflows/release.yml'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.md'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force release even if VERSION is unchanged from previous commit'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write   # needed to push tags and create GitHub Releases
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read VERSION
+        id: version
+        shell: pwsh
+        run: |
+          if (-not (Test-Path VERSION)) {
+            Write-Error "VERSION file not found at repo root"
+            exit 1
+          }
+          $v = (Get-Content VERSION -Raw).Trim()
+          if ([string]::IsNullOrWhiteSpace($v)) {
+            Write-Error "VERSION file is empty"
+            exit 1
+          }
+          # Semver-ish sanity check: must start with digit.digit.digit, may have -prerelease suffix
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z\.-]+)?$') {
+            Write-Error "VERSION '$v' does not match semver pattern (e.g. 1.2.3 or 1.2.3-rc1)"
+            exit 1
+          }
+          Write-Host "VERSION = $v"
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Skip-if-unchanged check
+        id: changed
+        shell: pwsh
+        run: |
+          $force = "${{ github.event.inputs.force }}" -eq "true"
+          if ($force) {
+            Write-Host "::notice::workflow_dispatch with force=true — skipping unchanged check"
+            "should_release=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          # Compare VERSION at HEAD vs HEAD~1. If identical, no release.
+          $hasParent = (git rev-parse --verify HEAD~1 2>$null)
+          if (-not $hasParent) {
+            Write-Host "::notice::No parent commit (initial commit) — will release"
+            "should_release=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          $current = (git show HEAD:VERSION 2>$null)
+          $previous = (git show HEAD~1:VERSION 2>$null)
+          if ($null -eq $previous) {
+            # VERSION did not exist in parent — treat as a bump
+            Write-Host "::notice::VERSION did not exist in previous commit — will release"
+            "should_release=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          $currentTrim = $current.Trim()
+          $previousTrim = $previous.Trim()
+          if ($currentTrim -eq $previousTrim) {
+            Write-Host "::notice::VERSION unchanged ($currentTrim) — skipping release"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Release skipped`n`n``VERSION`` is unchanged (``$currentTrim``). No release will be cut for this merge."
+            "should_release=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            Write-Host "::notice::VERSION bumped: $previousTrim -> $currentTrim — will release"
+            "should_release=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+
+      - name: Tag-collision check
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $tag = "v$v"
+          git fetch --tags --quiet
+          $exists = git tag --list $tag
+          if ($exists) {
+            Write-Error "Tag $tag already exists. Did you forget to bump VERSION? Aborting to prevent overwriting a released version."
+            exit 1
+          }
+          Write-Host "Tag $tag is available."
+
+      - name: Setup .NET (from global.json)
+        if: steps.changed.outputs.should_release == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        if: steps.changed.outputs.should_release == 'true'
+        run: dotnet restore Mouse2Joy.sln
+
+      - name: Test
+        if: steps.changed.outputs.should_release == 'true'
+        run: dotnet test Mouse2Joy.sln -c Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+      - name: Publish (single-file, self-contained, win-x64)
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          dotnet publish src/Mouse2Joy.App -c Release -p:Version=$v -o publish
+          if (-not (Test-Path "publish/Mouse2Joy.exe")) {
+            Write-Error "Publish did not produce Mouse2Joy.exe"
+            exit 1
+          }
+          # interception.dll copy is conditional in the csproj (only if present in source tree)
+          if (-not (Test-Path "publish/interception.dll")) {
+            Write-Warning "interception.dll missing from publish output — release will ship without it. The exe will still build but capture won't work for end users."
+          }
+
+      - name: Stage zip layout
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $stage = "staging/Mouse2Joy-$v"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "publish/Mouse2Joy.exe" -Destination $stage
+          if (Test-Path "publish/interception.dll") {
+            Copy-Item "publish/interception.dll" -Destination $stage
+          }
+          Copy-Item "LICENSE" -Destination $stage
+          if (Test-Path "THIRD_PARTY_NOTICES.md") {
+            Copy-Item "THIRD_PARTY_NOTICES.md" -Destination $stage
+          }
+          Copy-Item "build/installer/README-FIRST.txt" -Destination $stage
+
+      - name: Create portable zip
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $zip = "Mouse2Joy-$v-win-x64.zip"
+          Compress-Archive -Path "staging/Mouse2Joy-$v/*" -DestinationPath $zip -Force
+          Write-Host "Created $zip"
+
+      - name: Install Inno Setup
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          # Inno Setup ships ISCC.exe; locate it
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue)?.Source
+          if (-not $iscc) {
+            $candidates = @(
+              "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+              "C:\Program Files\Inno Setup 6\ISCC.exe"
+            )
+            foreach ($c in $candidates) {
+              if (Test-Path $c) { $iscc = $c; break }
+            }
+          }
+          if (-not $iscc) {
+            Write-Error "ISCC.exe not found after Inno Setup install"
+            exit 1
+          }
+          Write-Host "ISCC at $iscc"
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build installer
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path "installer-out" | Out-Null
+          & "$env:ISCC" "build/installer/Mouse2Joy.iss" "/DAppVersion=$v" "/O=installer-out" "/F=Mouse2Joy-Setup-$v"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Inno Setup compilation failed (exit $LASTEXITCODE)"
+            exit $LASTEXITCODE
+          }
+          if (-not (Test-Path "installer-out/Mouse2Joy-Setup-$v.exe")) {
+            Write-Error "Installer exe not produced"
+            exit 1
+          }
+
+      - name: Generate SHA256 checksums
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $zip = "Mouse2Joy-$v-win-x64.zip"
+          $exe = "installer-out/Mouse2Joy-Setup-$v.exe"
+          foreach ($f in @($zip, $exe)) {
+            $hash = (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower()
+            $name = Split-Path $f -Leaf
+            "$hash  $name" | Out-File -FilePath "$f.sha256" -Encoding ascii -NoNewline
+            Write-Host "$hash  $name"
+          }
+
+      - name: Create and push tag
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $tag = "v$v"
+          $sha = "${{ github.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a $tag $sha -m "Release $tag"
+          git push origin $tag
+
+      - name: Create GitHub Release (pre-release)
+        if: steps.changed.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Mouse2Joy v${{ steps.version.outputs.version }}
+          prerelease: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            Mouse2Joy-${{ steps.version.outputs.version }}-win-x64.zip
+            Mouse2Joy-${{ steps.version.outputs.version }}-win-x64.zip.sha256
+            installer-out/Mouse2Joy-Setup-${{ steps.version.outputs.version }}.exe
+            installer-out/Mouse2Joy-Setup-${{ steps.version.outputs.version }}.exe.sha256
+
+      - name: Summary
+        if: steps.changed.outputs.should_release == 'true'
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value @"
+          ## Release v$v published (pre-release)
+
+          - Tag: ``v$v`` on commit ``${{ github.sha }}``
+          - Artifacts: portable zip + Inno Setup installer (with SHA256 sidecars)
+          - Status: **pre-release** — review and promote manually on the Releases page
+
+          ### Next steps
+
+          1. Download the installer from the release page
+          2. Smoke-test on your machine (or a clean VM)
+          3. Edit the auto-generated release notes if needed
+          4. Untick "Set as a pre-release", tick "Set as the latest release"
+          "@

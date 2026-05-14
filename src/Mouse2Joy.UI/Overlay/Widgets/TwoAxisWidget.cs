@@ -47,7 +47,7 @@ public sealed class TwoAxisWidget : OverlayWidget
         var (dx, dy) = source switch
         {
             "RightStick" => (Snapshot.RightStickX, Snapshot.RightStickY),
-            _            => (Snapshot.LeftStickX, Snapshot.LeftStickY)
+            _ => (Snapshot.LeftStickX, Snapshot.LeftStickY)
         };
 
         var px = center.X + dx * radius;

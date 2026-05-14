@@ -681,24 +681,24 @@ public class SegmentedResponseCurveEvaluatorTests
     {
         // out(t) = t for above-threshold across all combinations.
         foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
-        foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
-        {
-            var e = AboveStyleShape(0.3, 2.0, style, shape);
-            Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9,
-                $"style={style} shape={shape} must pass through (t, t)");
-        }
+            foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
+            {
+                var e = AboveStyleShape(0.3, 2.0, style, shape);
+                Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9,
+                    $"style={style} shape={shape} must pass through (t, t)");
+            }
     }
 
     [Fact]
     public void Below_threshold_zero_in_zero_out_for_all_styles_and_shapes()
     {
         foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
-        foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
-        {
-            var e = BelowStyleShape(0.3, 2.0, style, shape);
-            Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9,
-                $"style={style} shape={shape} must pass through (0, 0)");
-        }
+            foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
+            {
+                var e = BelowStyleShape(0.3, 2.0, style, shape);
+                Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9,
+                    $"style={style} shape={shape} must pass through (0, 0)");
+            }
     }
 
     // ============================================================

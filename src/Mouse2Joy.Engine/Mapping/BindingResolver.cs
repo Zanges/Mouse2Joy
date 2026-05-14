@@ -113,37 +113,37 @@ internal sealed class BindingResolver
             switch (binding.Target)
             {
                 case StickAxisTarget sa:
-                {
-                    if (sig.Type != SignalType.Scalar) continue;
-                    var key = (sa.Stick, sa.Component);
-                    var existing = stickFinal.TryGetValue(key, out var v) ? v : 0.0;
-                    stickFinal[key] = Clamp1(existing + sig.ScalarValue);
-                    break;
-                }
+                    {
+                        if (sig.Type != SignalType.Scalar) continue;
+                        var key = (sa.Stick, sa.Component);
+                        var existing = stickFinal.TryGetValue(key, out var v) ? v : 0.0;
+                        stickFinal[key] = Clamp1(existing + sig.ScalarValue);
+                        break;
+                    }
                 case TriggerTarget tt:
-                {
-                    if (sig.Type != SignalType.Scalar) continue;
-                    var folded = Math.Abs(sig.ScalarValue);
-                    var existing = buckets.Triggers.TryGetValue(tt.Trigger, out var v) ? v : 0.0;
-                    var sum = existing + folded;
-                    if (sum > 1.0) sum = 1.0;
-                    buckets.Triggers[tt.Trigger] = sum;
-                    break;
-                }
+                    {
+                        if (sig.Type != SignalType.Scalar) continue;
+                        var folded = Math.Abs(sig.ScalarValue);
+                        var existing = buckets.Triggers.TryGetValue(tt.Trigger, out var v) ? v : 0.0;
+                        var sum = existing + folded;
+                        if (sum > 1.0) sum = 1.0;
+                        buckets.Triggers[tt.Trigger] = sum;
+                        break;
+                    }
                 case ButtonTarget bt:
-                {
-                    if (sig.Type != SignalType.Digital) continue;
-                    if (!buckets.Buttons.TryGetValue(bt.Button, out var prev)) prev = false;
-                    buckets.Buttons[bt.Button] = prev || sig.DigitalValue;
-                    break;
-                }
+                    {
+                        if (sig.Type != SignalType.Digital) continue;
+                        if (!buckets.Buttons.TryGetValue(bt.Button, out var prev)) prev = false;
+                        buckets.Buttons[bt.Button] = prev || sig.DigitalValue;
+                        break;
+                    }
                 case DPadTarget dp:
-                {
-                    if (sig.Type != SignalType.Digital) continue;
-                    if (!buckets.DPad.TryGetValue(dp.Direction, out var prev)) prev = false;
-                    buckets.DPad[dp.Direction] = prev || sig.DigitalValue;
-                    break;
-                }
+                    {
+                        if (sig.Type != SignalType.Digital) continue;
+                        if (!buckets.DPad.TryGetValue(dp.Direction, out var prev)) prev = false;
+                        buckets.DPad[dp.Direction] = prev || sig.DigitalValue;
+                        break;
+                    }
             }
         }
     }

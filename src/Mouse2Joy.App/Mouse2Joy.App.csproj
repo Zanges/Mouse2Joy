@@ -9,6 +9,15 @@
     <ApplicationIcon></ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Declared for all configurations so `dotnet restore` populates the
+         net8.0-windows/win-x64 assets graph that the Release build below
+         and `dotnet publish` both ask for. Without this, a plain
+         `dotnet restore` followed by `dotnet build -c Release` errors with
+         NETSDK1047. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

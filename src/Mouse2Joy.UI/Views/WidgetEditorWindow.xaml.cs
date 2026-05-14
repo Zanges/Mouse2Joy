@@ -671,22 +671,22 @@ public partial class WidgetEditorWindow : Window
                 // its content; Mode and Profile read engine state directly.
                 break;
             case "Button":
-            {
-                var sources = Mouse2Joy.UI.Overlay.Widgets.ButtonWidget.Sources;
-                host.Children.Add(BuildEnumRow("Button", "sourceName", sources, sources[0]));
-                host.Children.Add(BuildStringRow("Pressed text", "pressedText", "Pressed"));
-                host.Children.Add(BuildStringRow("Released text", "releasedText", ""));
-                break;
-            }
+                {
+                    var sources = Mouse2Joy.UI.Overlay.Widgets.ButtonWidget.Sources;
+                    host.Children.Add(BuildEnumRow("Button", "sourceName", sources, sources[0]));
+                    host.Children.Add(BuildStringRow("Pressed text", "pressedText", "Pressed"));
+                    host.Children.Add(BuildStringRow("Released text", "releasedText", ""));
+                    break;
+                }
             case "Axis":
-            {
-                var sources = Mouse2Joy.UI.Overlay.Widgets.AxisWidget.Sources;
-                host.Children.Add(BuildEnumRow("Axis", "sourceName", sources, sources[0]));
-                host.Children.Add(BuildEnumRow("Format", "axisFormat",
-                    Mouse2Joy.UI.Overlay.Widgets.StatusWidget.AxisFormats, "Decimal"));
-                host.Children.Add(BuildIntRow("Decimals", "axisDecimals", 2, 0, 4));
-                break;
-            }
+                {
+                    var sources = Mouse2Joy.UI.Overlay.Widgets.AxisWidget.Sources;
+                    host.Children.Add(BuildEnumRow("Axis", "sourceName", sources, sources[0]));
+                    host.Children.Add(BuildEnumRow("Format", "axisFormat",
+                        Mouse2Joy.UI.Overlay.Widgets.StatusWidget.AxisFormats, "Decimal"));
+                    host.Children.Add(BuildIntRow("Decimals", "axisDecimals", 2, 0, 4));
+                    break;
+                }
         }
     }
 

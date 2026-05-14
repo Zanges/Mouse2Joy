@@ -245,15 +245,15 @@ public sealed class OverlayCoordinator : IDisposable
     /// </summary>
     private static Point AnchorPoint(Rect r, Anchor a) => a switch
     {
-        Anchor.TopLeft     => new Point(r.Left,                     r.Top),
-        Anchor.Top         => new Point(r.Left + r.Width / 2.0,     r.Top),
-        Anchor.TopRight    => new Point(r.Right,                    r.Top),
-        Anchor.Left        => new Point(r.Left,                     r.Top + r.Height / 2.0),
-        Anchor.Center      => new Point(r.Left + r.Width / 2.0,     r.Top + r.Height / 2.0),
-        Anchor.Right       => new Point(r.Right,                    r.Top + r.Height / 2.0),
-        Anchor.BottomLeft  => new Point(r.Left,                     r.Bottom),
-        Anchor.Bottom      => new Point(r.Left + r.Width / 2.0,     r.Bottom),
-        Anchor.BottomRight => new Point(r.Right,                    r.Bottom),
-        _                  => new Point(r.Left,                     r.Top)
+        Anchor.TopLeft => new Point(r.Left, r.Top),
+        Anchor.Top => new Point(r.Left + r.Width / 2.0, r.Top),
+        Anchor.TopRight => new Point(r.Right, r.Top),
+        Anchor.Left => new Point(r.Left, r.Top + r.Height / 2.0),
+        Anchor.Center => new Point(r.Left + r.Width / 2.0, r.Top + r.Height / 2.0),
+        Anchor.Right => new Point(r.Right, r.Top + r.Height / 2.0),
+        Anchor.BottomLeft => new Point(r.Left, r.Bottom),
+        Anchor.Bottom => new Point(r.Left + r.Width / 2.0, r.Bottom),
+        Anchor.BottomRight => new Point(r.Right, r.Bottom),
+        _ => new Point(r.Left, r.Top)
     };
 }

@@ -390,9 +390,9 @@ public sealed class StatusWidget : OverlayWidget
         var hw = w / 2.0;
         var hh = h / 2.0;
         // Four corner offsets from centre, rotated.
-        var c1 = new Point( hw * cos -  hh * sin,  hw * sin +  hh * cos);
-        var c2 = new Point( hw * cos - -hh * sin,  hw * sin + -hh * cos);
-        var c3 = new Point(-hw * cos -  hh * sin, -hw * sin +  hh * cos);
+        var c1 = new Point(hw * cos - hh * sin, hw * sin + hh * cos);
+        var c2 = new Point(hw * cos - -hh * sin, hw * sin + -hh * cos);
+        var c3 = new Point(-hw * cos - hh * sin, -hw * sin + hh * cos);
         var c4 = new Point(-hw * cos - -hh * sin, -hw * sin + -hh * cos);
         var minX = Math.Min(Math.Min(c1.X, c2.X), Math.Min(c3.X, c4.X));
         var maxX = Math.Max(Math.Max(c1.X, c2.X), Math.Max(c3.X, c4.X));
@@ -446,38 +446,38 @@ public sealed class StatusWidget : OverlayWidget
                 if (snapshot is null) return "(no profile)";
                 return string.IsNullOrEmpty(snapshot.ProfileName) ? "(no profile)" : snapshot.ProfileName;
             case "Button":
-            {
-                var pressedText = ReadOptionString(cfg, "pressedText", "Pressed");
-                var releasedText = ReadOptionString(cfg, "releasedText", "");
-                var mask = ParseButtonMask(sourceName);
-                if (mask == XInputButtons.None) return "";
-                if (snapshot is null)
                 {
-                    // Use whichever string is wider so the box doesn't grow on press.
-                    return pressedText.Length >= releasedText.Length ? pressedText : releasedText;
+                    var pressedText = ReadOptionString(cfg, "pressedText", "Pressed");
+                    var releasedText = ReadOptionString(cfg, "releasedText", "");
+                    var mask = ParseButtonMask(sourceName);
+                    if (mask == XInputButtons.None) return "";
+                    if (snapshot is null)
+                    {
+                        // Use whichever string is wider so the box doesn't grow on press.
+                        return pressedText.Length >= releasedText.Length ? pressedText : releasedText;
+                    }
+                    var pressed = (snapshot.Buttons & mask) != 0;
+                    return pressed ? pressedText : releasedText;
                 }
-                var pressed = (snapshot.Buttons & mask) != 0;
-                return pressed ? pressedText : releasedText;
-            }
             case "Axis":
-            {
-                if (!IsKnownAxis(sourceName)) return "";
-                var format = ReadOptionString(cfg, "axisFormat", "Decimal");
-                var decimals = Math.Max(0, Math.Min(4, ReadOptionInt(cfg, "axisDecimals", 2)));
-                var val = snapshot is null ? 0.0 : ReadAxisStatic(snapshot, sourceName);
-                if (format.Equals("Percent", StringComparison.OrdinalIgnoreCase))
                 {
-                    var fmt = "F" + decimals;
-                    return (val * 100.0).ToString(fmt, CultureInfo.InvariantCulture) + "%";
+                    if (!IsKnownAxis(sourceName)) return "";
+                    var format = ReadOptionString(cfg, "axisFormat", "Decimal");
+                    var decimals = Math.Max(0, Math.Min(4, ReadOptionInt(cfg, "axisDecimals", 2)));
+                    var val = snapshot is null ? 0.0 : ReadAxisStatic(snapshot, sourceName);
+                    if (format.Equals("Percent", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var fmt = "F" + decimals;
+                        return (val * 100.0).ToString(fmt, CultureInfo.InvariantCulture) + "%";
+                    }
+                    else
+                    {
+                        var pos = "+0." + new string('0', decimals);
+                        var neg = "-0." + new string('0', decimals);
+                        var zero = "0." + new string('0', decimals);
+                        return val.ToString($"{pos};{neg};{zero}", CultureInfo.InvariantCulture);
+                    }
                 }
-                else
-                {
-                    var pos = "+0." + new string('0', decimals);
-                    var neg = "-0." + new string('0', decimals);
-                    var zero = "0." + new string('0', decimals);
-                    return val.ToString($"{pos};{neg};{zero}", CultureInfo.InvariantCulture);
-                }
-            }
             default:
                 return "";
         }

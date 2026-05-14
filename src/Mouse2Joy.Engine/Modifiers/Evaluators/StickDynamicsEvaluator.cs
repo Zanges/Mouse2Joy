@@ -31,35 +31,35 @@ internal sealed class StickDynamicsEvaluator : IModifierEvaluator
         switch (_config.Mode)
         {
             case StickDynamicsMode.Velocity:
-            {
-                // Param1 = DecayPerSecond, Param2 = MaxVelocityCounts
-                var maxVel = _config.Param2 <= 0 ? 1.0 : _config.Param2;
-                var velocity = delta / dt;
-                var target = velocity / maxVel;
-                if (target > 1.0) target = 1.0;
-                else if (target < -1.0) target = -1.0;
+                {
+                    // Param1 = DecayPerSecond, Param2 = MaxVelocityCounts
+                    var maxVel = _config.Param2 <= 0 ? 1.0 : _config.Param2;
+                    var velocity = delta / dt;
+                    var target = velocity / maxVel;
+                    if (target > 1.0) target = 1.0;
+                    else if (target < -1.0) target = -1.0;
 
-                var decay = _config.Param1 < 0 ? 0 : _config.Param1;
-                var weight = Math.Exp(-decay * dt);
-                _deflection = target + (_deflection - target) * weight;
-                break;
-            }
+                    var decay = _config.Param1 < 0 ? 0 : _config.Param1;
+                    var weight = Math.Exp(-decay * dt);
+                    _deflection = target + (_deflection - target) * weight;
+                    break;
+                }
             case StickDynamicsMode.Accumulator:
-            {
-                // Param1 = SpringPerSecond, Param2 = CountsPerFullDeflection
-                var perFull = _config.Param2 <= 0 ? 1.0 : _config.Param2;
-                _deflection += delta / perFull;
-                var spring = _config.Param1 < 0 ? 0 : _config.Param1;
-                _deflection *= Math.Exp(-spring * dt);
-                break;
-            }
+                {
+                    // Param1 = SpringPerSecond, Param2 = CountsPerFullDeflection
+                    var perFull = _config.Param2 <= 0 ? 1.0 : _config.Param2;
+                    _deflection += delta / perFull;
+                    var spring = _config.Param1 < 0 ? 0 : _config.Param1;
+                    _deflection *= Math.Exp(-spring * dt);
+                    break;
+                }
             case StickDynamicsMode.Persistent:
-            {
-                // Param1 = CountsPerFullDeflection, Param2 ignored.
-                var perFull = _config.Param1 <= 0 ? 1.0 : _config.Param1;
-                _deflection += delta / perFull;
-                break;
-            }
+                {
+                    // Param1 = CountsPerFullDeflection, Param2 ignored.
+                    var perFull = _config.Param1 <= 0 ? 1.0 : _config.Param1;
+                    _deflection += delta / perFull;
+                    break;
+                }
         }
 
         if (_deflection > 1.0) _deflection = 1.0;

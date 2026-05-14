@@ -39,17 +39,17 @@ public partial class BindingEditorWindow : Window
 
         // Wire source/target subpickers.
         SourceKindCombo.SelectionChanged += (_, _) => { UpdateSourceVisibility(); CommitSource(); UpdateAutoLabel(); UpdateSuppressDefault(); };
-        MouseAxisCombo.SelectionChanged    += (_, _) => CommitSource();
-        MouseButtonCombo.SelectionChanged  += (_, _) => CommitSource();
-        MouseScrollCombo.SelectionChanged  += (_, _) => CommitSource();
-        KeyBox.LostFocus                   += (_, _) => CommitSource();
+        MouseAxisCombo.SelectionChanged += (_, _) => CommitSource();
+        MouseButtonCombo.SelectionChanged += (_, _) => CommitSource();
+        MouseScrollCombo.SelectionChanged += (_, _) => CommitSource();
+        KeyBox.LostFocus += (_, _) => CommitSource();
 
-        TargetKindCombo.SelectionChanged   += (_, _) => { UpdateTargetVisibility(); CommitTarget(); UpdateAutoLabel(); };
-        StickCombo.SelectionChanged        += (_, _) => CommitTarget();
-        StickAxisCombo.SelectionChanged    += (_, _) => CommitTarget();
-        TriggerCombo.SelectionChanged      += (_, _) => CommitTarget();
-        ButtonCombo.SelectionChanged       += (_, _) => CommitTarget();
-        DPadCombo.SelectionChanged         += (_, _) => CommitTarget();
+        TargetKindCombo.SelectionChanged += (_, _) => { UpdateTargetVisibility(); CommitTarget(); UpdateAutoLabel(); };
+        StickCombo.SelectionChanged += (_, _) => CommitTarget();
+        StickAxisCombo.SelectionChanged += (_, _) => CommitTarget();
+        TriggerCombo.SelectionChanged += (_, _) => CommitTarget();
+        ButtonCombo.SelectionChanged += (_, _) => CommitTarget();
+        DPadCombo.SelectionChanged += (_, _) => CommitTarget();
 
         // Label two-way wiring.
         LabelTb.Text = _vm.Label ?? string.Empty;

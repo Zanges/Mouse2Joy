@@ -469,9 +469,20 @@ public sealed class ParametricCurveProxy : ModifierParamProxy
         set
         {
             var clamped = value;
-            if (clamped < MinPointCount) clamped = MinPointCount;
-            if (clamped > MaxPointCount) clamped = MaxPointCount;
-            if (clamped == Mod.Points.Count) return;
+            if (clamped < MinPointCount)
+            {
+                clamped = MinPointCount;
+            }
+
+            if (clamped > MaxPointCount)
+            {
+                clamped = MaxPointCount;
+            }
+
+            if (clamped == Mod.Points.Count)
+            {
+                return;
+            }
 
             var newPoints = ResamplePointsTo(Mod.Points, clamped);
             Card.Update(Mod with { Points = newPoints });
@@ -487,7 +498,10 @@ public sealed class ParametricCurveProxy : ModifierParamProxy
         {
             // Detach handlers from existing rows.
             foreach (var oldRow in PointRows)
+            {
                 oldRow.PropertyChanged -= OnRowChanged;
+            }
+
             PointRows.Clear();
 
             for (int i = 0; i < Mod.Points.Count; i++)
@@ -507,11 +521,22 @@ public sealed class ParametricCurveProxy : ModifierParamProxy
 
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_suppressRowEvents) return;
-        if (sender is not CurvePointRow row) return;
+        if (_suppressRowEvents)
+        {
+            return;
+        }
+
+        if (sender is not CurvePointRow row)
+        {
+            return;
+        }
 
         var pts = Mod.Points.ToArray();
-        if (row.Index < 0 || row.Index >= pts.Length) return;
+        if (row.Index < 0 || row.Index >= pts.Length)
+        {
+            return;
+        }
+
         pts[row.Index] = new CurvePoint(row.X, row.Y);
         Card.Update(Mod with { Points = pts });
     }
@@ -538,7 +563,11 @@ public sealed class ParametricCurveProxy : ModifierParamProxy
         for (int i = 0; i < newCount; i++)
         {
             var x = xMin + step * i;
-            if (i == newCount - 1) x = xMax;  // exact endpoint
+            if (i == newCount - 1)
+            {
+                x = xMax;  // exact endpoint
+            }
+
             result[i] = new CurvePoint(x, EvaluateLinear(srcSorted, x));
         }
         return result;
@@ -546,10 +575,26 @@ public sealed class ParametricCurveProxy : ModifierParamProxy
 
     private static double EvaluateLinear(CurvePoint[] sorted, double x)
     {
-        if (sorted.Length == 0) return x;
-        if (sorted.Length == 1) return sorted[0].Y;
-        if (x <= sorted[0].X) return sorted[0].Y;
-        if (x >= sorted[^1].X) return sorted[^1].Y;
+        if (sorted.Length == 0)
+        {
+            return x;
+        }
+
+        if (sorted.Length == 1)
+        {
+            return sorted[0].Y;
+        }
+
+        if (x <= sorted[0].X)
+        {
+            return sorted[0].Y;
+        }
+
+        if (x >= sorted[^1].X)
+        {
+            return sorted[^1].Y;
+        }
+
         for (int i = 0; i < sorted.Length - 1; i++)
         {
             if (x <= sorted[i + 1].X)

@@ -19,7 +19,7 @@ namespace Mouse2Joy.UI.Controls;
 /// <see cref="Adorner"/> attached to the textbox. The adorner sits above the
 /// textbox content and below the caret — typing draws on top of it. The adorner
 /// is created lazily on the first non-empty assignment of the attached property
-/// and toggles its visibility from a <see cref="TextBox.TextChanged"/> handler.
+/// and toggles its visibility from a <c>TextChanged</c> handler.
 /// </remarks>
 public static class PlaceholderText
 {
@@ -34,7 +34,10 @@ public static class PlaceholderText
 
     private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is not TextBox tb) return;
+        if (d is not TextBox tb)
+        {
+            return;
+        }
 
         // Wire one-time hooks per textbox. The Loaded event ensures the adorner
         // layer is available; TextChanged updates visibility as the user types.
@@ -45,7 +48,10 @@ public static class PlaceholderText
             tb.TextChanged += OnTextBoxTextChanged;
             // If the textbox is already loaded (e.g. attached prop set after init),
             // attach the adorner now.
-            if (tb.IsLoaded) AttachAdorner(tb);
+            if (tb.IsLoaded)
+            {
+                AttachAdorner(tb);
+            }
         }
         else
         {
@@ -62,19 +68,32 @@ public static class PlaceholderText
 
     private static void OnTextBoxLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBox tb) AttachAdorner(tb);
+        if (sender is TextBox tb)
+        {
+            AttachAdorner(tb);
+        }
     }
 
     private static void OnTextBoxTextChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox tb) UpdatePlaceholderVisibility(tb);
+        if (sender is TextBox tb)
+        {
+            UpdatePlaceholderVisibility(tb);
+        }
     }
 
     private static void AttachAdorner(TextBox tb)
     {
         var layer = AdornerLayer.GetAdornerLayer(tb);
-        if (layer is null) return;
-        if (tb.GetValue(AdornerProperty) is PlaceholderAdorner) return;
+        if (layer is null)
+        {
+            return;
+        }
+
+        if (tb.GetValue(AdornerProperty) is PlaceholderAdorner)
+        {
+            return;
+        }
 
         var adorner = new PlaceholderAdorner(tb, GetText(tb));
         layer.Add(adorner);
@@ -85,12 +104,18 @@ public static class PlaceholderText
     private static void UpdateAdornerText(TextBox tb, string newPlaceholder)
     {
         if (tb.GetValue(AdornerProperty) is PlaceholderAdorner adorner)
+        {
             adorner.SetPlaceholder(newPlaceholder);
+        }
     }
 
     private static void UpdatePlaceholderVisibility(TextBox tb)
     {
-        if (tb.GetValue(AdornerProperty) is not PlaceholderAdorner adorner) return;
+        if (tb.GetValue(AdornerProperty) is not PlaceholderAdorner adorner)
+        {
+            return;
+        }
+
         adorner.Visibility = string.IsNullOrEmpty(tb.Text) && !string.IsNullOrEmpty(GetText(tb))
             ? Visibility.Visible
             : Visibility.Collapsed;

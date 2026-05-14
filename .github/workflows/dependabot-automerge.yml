@@ -1,0 +1,88 @@
+name: Dependabot auto-merge
+
+# Auto-merges Dependabot PRs that pass CI when the update type is patch or
+# minor (any ecosystem), or when the update is a security update of any type.
+# Major version bumps and anything we can't classify still require manual
+# review.
+#
+# Requires repo setting "Allow auto-merge" to be enabled
+# (Settings -> General -> Pull Requests -> Allow auto-merge).
+
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  automerge:
+    name: Enable auto-merge for safe Dependabot updates
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
+    timeout-minutes: 5
+
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide whether to auto-merge
+        id: decide
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          ALERT_STATE: ${{ steps.meta.outputs.alert-state }}
+        run: |
+          should_merge="false"
+          reason=""
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor)
+              should_merge="true"
+              reason="patch/minor update"
+              ;;
+            version-update:semver-major)
+              reason="major update — manual review required"
+              ;;
+            *)
+              reason="unknown update type ($UPDATE_TYPE) — manual review required"
+              ;;
+          esac
+          # Security updates always auto-merge regardless of semver bump.
+          if [ "$ALERT_STATE" = "AUTO_DISMISSED" ] || [ "$ALERT_STATE" = "DISMISSED" ]; then
+            : # ignore dismissed alerts
+          elif [ -n "$ALERT_STATE" ] && [ "$ALERT_STATE" != "null" ]; then
+            should_merge="true"
+            reason="security update ($ALERT_STATE)"
+          fi
+          echo "should_merge=$should_merge" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "Decision: $should_merge ($reason)"
+
+      - name: Approve PR
+        if: steps.decide.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr review --approve "$PR_URL" --body "Auto-approved: ${{ steps.decide.outputs.reason }}."
+
+      - name: Enable auto-merge (squash)
+        if: steps.decide.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Leave a note for manual review
+        if: steps.decide.outputs.should_merge != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "Auto-merge skipped: ${{ steps.decide.outputs.reason }}. Review manually."

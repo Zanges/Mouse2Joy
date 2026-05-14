@@ -1,0 +1,81 @@
+name: PR labeler
+
+# Tags PRs by:
+#   1. File paths   -> via actions/labeler + .github/labeler.yml
+#   2. PR title     -> via Conventional Commit prefix (feat:, fix:, ...)
+#
+# Both run on every PR open/sync. Labels accumulate (sync-labels is off) so
+# manual labels are preserved, and existing labels are not removed when the
+# diff changes.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  path-labeler:
+    name: Apply path-based labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Apply labels from .github/labeler.yml
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          sync-labels: false
+
+  title-labeler:
+    name: Apply title-based labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Map Conventional Commit prefix to label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          title_lower="$(echo "$PR_TITLE" | tr '[:upper:]' '[:lower:]')"
+          prefix="${title_lower%%:*}"
+          # Strip an optional scope: "feat(ui)" -> "feat"
+          prefix="${prefix%%(*}"
+          # Trim whitespace.
+          prefix="$(echo "$prefix" | xargs)"
+
+          declare -A map=(
+            [feat]=feature
+            [feature]=feature
+            [fix]=fix
+            [bug]=fix
+            [bugfix]=fix
+            [perf]=enhancement
+            [refactor]=refactor
+            [chore]=chore
+            [build]=build
+            [ci]=ci
+            [docs]=docs
+            [doc]=docs
+            [test]=tests
+            [tests]=tests
+            [style]=internal
+            [revert]=internal
+          )
+
+          label="${map[$prefix]:-}"
+          if [ -z "$label" ]; then
+            echo "No Conventional Commit prefix matched in title: '$PR_TITLE' (prefix='$prefix')"
+            exit 0
+          fi
+
+          echo "Applying label '$label' from title prefix '$prefix'"
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "$label"

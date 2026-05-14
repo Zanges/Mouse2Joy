@@ -8,7 +8,7 @@ namespace Mouse2Joy.UI.Controls;
 /// <summary>
 /// Numeric input with up/down step buttons. Soft-bounded by default — typing a value
 /// outside [<see cref="Min"/>, <see cref="Max"/>] is accepted, the buttons clamp.
-/// Wires hold-to-repeat via <see cref="RepeatButton"/>; mouse wheel and arrow keys
+/// Wires hold-to-repeat via <c>RepeatButton</c>; mouse wheel and arrow keys
 /// step too. Reverts to the last good value on parse failure.
 /// </summary>
 public partial class NumericUpDown : UserControl
@@ -76,14 +76,21 @@ public partial class NumericUpDown : UserControl
 
     private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is not NumericUpDown self) return;
+        if (d is not NumericUpDown self)
+        {
+            return;
+        }
+
         self.SyncTextFromValue();
         self.ValueChanged?.Invoke(self, (double)e.OldValue, (double)e.NewValue);
     }
 
     private static void OnDecimalsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is NumericUpDown self) self.SyncTextFromValue();
+        if (d is NumericUpDown self)
+        {
+            self.SyncTextFromValue();
+        }
     }
 
     private void SyncTextFromValue()
@@ -97,8 +104,16 @@ public partial class NumericUpDown : UserControl
         // First, commit any pending text edit so a held button doesn't fight it.
         TryCommitText();
         var next = Value + direction * Step;
-        if (Min.HasValue) next = Math.Max(Min.Value, next);
-        if (Max.HasValue) next = Math.Min(Max.Value, next);
+        if (Min.HasValue)
+        {
+            next = Math.Max(Min.Value, next);
+        }
+
+        if (Max.HasValue)
+        {
+            next = Math.Min(Max.Value, next);
+        }
+
         Value = next;
     }
 

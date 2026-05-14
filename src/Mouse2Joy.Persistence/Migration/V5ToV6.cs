@@ -19,6 +19,9 @@ internal static class V5ToV6
 {
     public static void Apply(JsonNode root)
     {
-        if (root is JsonObject ro) ro["schemaVersion"] = 6;
+        if (root is JsonObject ro)
+        {
+            ro["schemaVersion"] = 6;
+        }
     }
 }

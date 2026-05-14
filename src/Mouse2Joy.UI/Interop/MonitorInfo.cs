@@ -35,7 +35,11 @@ public sealed record MonitorInfo(
 
 public static class MonitorEnumerator
 {
+    // MONITOR_DEFAULTTOPRIMARY is kept as documentation of the Win32 flag
+    // set even though we don't currently use MonitorFromPoint.
+#pragma warning disable IDE0051
     private const uint MONITOR_DEFAULTTOPRIMARY = 1;
+#pragma warning restore IDE0051
     private const int MONITORINFOF_PRIMARY = 1;
     private const int MDT_EFFECTIVE_DPI = 0;
 
@@ -81,7 +85,10 @@ public static class MonitorEnumerator
         {
             var mi = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>() };
             if (GetMonitorInfo(hMonitor, ref mi))
+            {
                 raw.Add((hMonitor, mi));
+            }
+
             return true;
         }, 0);
 
@@ -99,7 +106,17 @@ public static class MonitorEnumerator
             var (hMon, mi) = ordered[i];
             // Probing per-monitor DPI; if shcore call fails (shouldn't on Win10+), fall back to 96.
             uint dpiX = 96, dpiY = 96;
-            try { GetDpiForMonitor(hMon, MDT_EFFECTIVE_DPI, out dpiX, out dpiY); }
+            try
+            {
+                // GetDpiForMonitor returns S_OK (0) on success; non-zero HRESULT
+                // means the out params are undefined, so we fall through with
+                // the 96/96 defaults set above.
+                if (GetDpiForMonitor(hMon, MDT_EFFECTIVE_DPI, out var ox, out var oy) == 0)
+                {
+                    dpiX = ox;
+                    dpiY = oy;
+                }
+            }
             catch { /* fall through with 96 */ }
 
             var bounds = new Rect(mi.rcMonitor.Left, mi.rcMonitor.Top,

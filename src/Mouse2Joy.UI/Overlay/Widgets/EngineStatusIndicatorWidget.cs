@@ -28,16 +28,19 @@ public sealed class EngineStatusIndicatorWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
 
         if (ReadBool("showBackground", false))
         {
             var bg = ReadColorBrush("backgroundColor", BgBrush);
-            dc.DrawRoundedRectangle(bg, Outline, new Rect(0, 0, w, h), 6, 6);
+            drawingContext.DrawRoundedRectangle(bg, Outline, new Rect(0, 0, w, h), 6, 6);
         }
 
         var fallback = Color.FromRgb(120, 120, 120);
@@ -58,6 +61,6 @@ public sealed class EngineStatusIndicatorWidget : OverlayWidget
         var cx = w / 2.0;
         var cy = h / 2.0;
         var r = Math.Max(0, Math.Min(w, h) / 2.0 - 2);
-        dc.DrawEllipse(brush, null, new Point(cx, cy), r, r);
+        drawingContext.DrawEllipse(brush, null, new Point(cx, cy), r, r);
     }
 }

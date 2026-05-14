@@ -33,7 +33,7 @@ public sealed class ButtonWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
@@ -43,12 +43,14 @@ public sealed class ButtonWidget : OverlayWidget
         var pressed = (Snapshot.Buttons & mask) != 0;
 
         if (ReadBool("showBackground", false))
-            dc.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        {
+            drawingContext.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        }
 
         // Pressed = filled with accent, otherwise just an outlined rounded rect.
         var fill = pressed ? accent : null;
         var rect = new Rect(1, 1, Math.Max(0, w - 2), Math.Max(0, h - 2));
-        dc.DrawRoundedRectangle(fill, Outline, rect, 4, 4);
+        drawingContext.DrawRoundedRectangle(fill, Outline, rect, 4, 4);
     }
 
     private static XInputButtons ParseMask(string source) => source switch

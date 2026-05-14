@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FluentAssertions;
-using Mouse2Joy.Persistence;
 using Mouse2Joy.Persistence.Migration;
 using Mouse2Joy.Persistence.Models;
 

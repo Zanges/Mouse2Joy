@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,6 +8,11 @@ using Mouse2Joy.UI.Controls;
 using Mouse2Joy.UI.Interop;
 using Mouse2Joy.UI.Overlay.Widgets;
 using Mouse2Joy.UI.ViewModels;
+
+// BuildXxx helpers return FrameworkElement intentionally so the row composer
+// can mix control types uniformly. Suppress CA1859 ("return concrete type")
+// for this file -- the polymorphism is the point.
+#pragma warning disable CA1859
 
 namespace Mouse2Joy.UI.Views;
 
@@ -70,7 +74,7 @@ public partial class WidgetEditorWindow : Window
     private WidgetConfig _staging;
     private bool _suppressEvents;
 
-    /// <summary>Set on Save; consumed by the caller after <see cref="ShowDialog"/> returns true.</summary>
+    /// <summary>Set on Save; consumed by the caller after <c>ShowDialog</c> returns true.</summary>
     public WidgetConfig? Result { get; private set; }
 
     /// <summary>
@@ -97,7 +101,10 @@ public partial class WidgetEditorWindow : Window
         // For an existing widget: exclude self and descendants from the Parent picker
         // so the user can't form a cycle. For Add: nothing is excluded.
         _excludedParents = _isAdd ? new HashSet<string>() : ComputeDescendants(existing!.Id, siblings);
-        if (existing is not null) _excludedParents.Add(existing.Id);
+        if (existing is not null)
+        {
+            _excludedParents.Add(existing.Id);
+        }
 
         if (existing is not null)
         {
@@ -169,7 +176,10 @@ public partial class WidgetEditorWindow : Window
     private void PopulateTypeCb()
     {
         TypeCb.Items.Clear();
-        foreach (var t in WidgetTypes) TypeCb.Items.Add(t);
+        foreach (var t in WidgetTypes)
+        {
+            TypeCb.Items.Add(t);
+        }
     }
 
     private void PopulateMonitorCb()
@@ -199,7 +209,11 @@ public partial class WidgetEditorWindow : Window
         // the "#N" disambiguator is consistent with the table.
         foreach (var s in _siblings)
         {
-            if (_excludedParents.Contains(s.Id)) continue;
+            if (_excludedParents.Contains(s.Id))
+            {
+                continue;
+            }
+
             ParentCb.Items.Add(new ParentChoice(s.Id, WidgetDisplay.ResolveDisplayName(s, _siblings)));
         }
     }
@@ -242,10 +256,17 @@ public partial class WidgetEditorWindow : Window
         while (stack.Count > 0)
         {
             var id = stack.Pop();
-            if (!byParent.TryGetValue(id, out var children)) continue;
+            if (!byParent.TryGetValue(id, out var children))
+            {
+                continue;
+            }
+
             foreach (var c in children)
             {
-                if (result.Add(c)) stack.Push(c);
+                if (result.Add(c))
+                {
+                    stack.Push(c);
+                }
             }
         }
         return result;
@@ -326,7 +347,9 @@ public partial class WidgetEditorWindow : Window
             ? "This widget must stay square."
             : "Swap width and height";
         if (squareOnly && _staging.LockAspect == false)
+        {
             _staging = _staging with { LockAspect = true };
+        }
     }
 
     private void UpdateMonitorEnabled()
@@ -340,9 +363,20 @@ public partial class WidgetEditorWindow : Window
 
     private void OnTypeChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressEvents) return;
-        if (TypeCb.SelectedItem is not string newType) return;
-        if (newType == _staging.Type) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (TypeCb.SelectedItem is not string newType)
+        {
+            return;
+        }
+
+        if (newType == _staging.Type)
+        {
+            return;
+        }
 
         var oldType = _staging.Type;
         var (oldDefW, oldDefH) = DefaultSizeFor(oldType);
@@ -361,7 +395,10 @@ public partial class WidgetEditorWindow : Window
         // touched yet on this round).
         var squareOnly = SquareOnlyTypes.Contains(newType);
         var lockAspect = squareOnly || _staging.LockAspect;
-        if (squareOnly) newH = newW;
+        if (squareOnly)
+        {
+            newH = newW;
+        }
 
         _staging = _staging with
         {
@@ -430,8 +467,16 @@ public partial class WidgetEditorWindow : Window
 
     private void OnWidthChanged(NumericUpDown sender, double oldValue, double newValue)
     {
-        if (_suppressEvents) return;
-        if (newValue <= 0) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (newValue <= 0)
+        {
+            return;
+        }
+
         _staging = _staging with { Width = newValue };
         if (_staging.LockAspect)
         {
@@ -446,8 +491,16 @@ public partial class WidgetEditorWindow : Window
 
     private void OnHeightChanged(NumericUpDown sender, double oldValue, double newValue)
     {
-        if (_suppressEvents) return;
-        if (newValue <= 0) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (newValue <= 0)
+        {
+            return;
+        }
+
         _staging = _staging with { Height = newValue };
         if (_staging.LockAspect)
         {
@@ -461,7 +514,11 @@ public partial class WidgetEditorWindow : Window
 
     private void OnLockAspectClicked(object sender, RoutedEventArgs e)
     {
-        if (_suppressEvents) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
         var nowLocked = LockAspectBtn.IsChecked == true;
         // Square-only types: defensive — the toggle is disabled, but if some
         // edge case fires this anyway, snap right back on.
@@ -472,7 +529,11 @@ public partial class WidgetEditorWindow : Window
             finally { _suppressEvents = false; }
             return;
         }
-        if (nowLocked) RecaptureLockedAspect();
+        if (nowLocked)
+        {
+            RecaptureLockedAspect();
+        }
+
         _staging = _staging with { LockAspect = nowLocked };
     }
 
@@ -491,14 +552,21 @@ public partial class WidgetEditorWindow : Window
     /// </summary>
     private void OnSwapWh(object sender, RoutedEventArgs e)
     {
-        if (_suppressEvents) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
         SwapWidthAndHeight();
     }
 
     private void SwapWidthAndHeight()
     {
         // Square-only types: no-op. The lock would re-enforce equality immediately.
-        if (SquareOnlyTypes.Contains(_staging.Type)) return;
+        if (SquareOnlyTypes.Contains(_staging.Type))
+        {
+            return;
+        }
 
         var newW = _staging.Height;
         var newH = _staging.Width;
@@ -518,7 +586,10 @@ public partial class WidgetEditorWindow : Window
 
     private void OnResetX(object sender, RoutedEventArgs e)
     {
-        if (_suppressEvents) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
         // Bypass the change handler so this doesn't get treated as a manual
         // edit (it's a deliberate reset, not the user typing 0).
         _suppressEvents = true;
@@ -529,7 +600,11 @@ public partial class WidgetEditorWindow : Window
 
     private void OnResetY(object sender, RoutedEventArgs e)
     {
-        if (_suppressEvents) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
         _suppressEvents = true;
         try { YInput.Value = 0; }
         finally { _suppressEvents = false; }
@@ -540,9 +615,20 @@ public partial class WidgetEditorWindow : Window
 
     private void OnParentChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressEvents) return;
-        if (ParentCb.SelectedItem is not ParentChoice choice) return;
-        if (choice.Id == _staging.ParentId) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (ParentCb.SelectedItem is not ParentChoice choice)
+        {
+            return;
+        }
+
+        if (choice.Id == _staging.ParentId)
+        {
+            return;
+        }
 
         // Defensive: would the choice form a cycle? UI excludes them but a stale
         // selection could still slip in if the layout changed under us.
@@ -565,26 +651,51 @@ public partial class WidgetEditorWindow : Window
 
     private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressEvents) return;
-        if (MonitorCb.SelectedItem is MonitorChoice m) _staging = _staging with { MonitorIndex = m.Index };
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (MonitorCb.SelectedItem is MonitorChoice m)
+        {
+            _staging = _staging with { MonitorIndex = m.Index };
+        }
     }
 
     private void OnVisibleClicked(object sender, RoutedEventArgs e)
     {
-        if (_suppressEvents) return;
+        if (_suppressEvents)
+        {
+            return;
+        }
+
         _staging = _staging with { Visible = VisibleCb.IsChecked == true };
     }
 
     private void OnAnchorPointChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressEvents) return;
-        if (AnchorPointCb.SelectedItem is AnchorChoice c) _staging = _staging with { AnchorPoint = c.Anchor };
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (AnchorPointCb.SelectedItem is AnchorChoice c)
+        {
+            _staging = _staging with { AnchorPoint = c.Anchor };
+        }
     }
 
     private void OnSelfAnchorChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressEvents) return;
-        if (SelfAnchorCb.SelectedItem is AnchorChoice c) _staging = _staging with { SelfAnchor = c.Anchor };
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        if (SelfAnchorCb.SelectedItem is AnchorChoice c)
+        {
+            _staging = _staging with { SelfAnchor = c.Anchor };
+        }
     }
 
     // ---- Options panel rendering ----------------------------------------------------
@@ -611,7 +722,11 @@ public partial class WidgetEditorWindow : Window
         }
         OptionsHeader.Visibility = Visibility.Visible;
         var panelDefault = new StackPanel();
-        foreach (var opt in schema) panelDefault.Children.Add(BuildOptionField(opt));
+        foreach (var opt in schema)
+        {
+            panelDefault.Children.Add(BuildOptionField(opt));
+        }
+
         OptionsHost.Items.Add(panelDefault);
     }
 
@@ -630,7 +745,11 @@ public partial class WidgetEditorWindow : Window
         // Source kind enum.
         var sourceKindGrid = MakeRow("Source");
         var sourceKindCb = new ComboBox();
-        foreach (var k in Mouse2Joy.UI.Overlay.Widgets.StatusWidget.SourceKinds) sourceKindCb.Items.Add(k);
+        foreach (var k in Mouse2Joy.UI.Overlay.Widgets.StatusWidget.SourceKinds)
+        {
+            sourceKindCb.Items.Add(k);
+        }
+
         sourceKindCb.SelectedItem = ReadStagingString("sourceKind", "Mode");
         Grid.SetColumn(sourceKindCb, 1);
         sourceKindGrid.Children.Add(sourceKindCb);
@@ -651,7 +770,11 @@ public partial class WidgetEditorWindow : Window
 
         sourceKindCb.SelectionChanged += (_, _) =>
         {
-            if (sourceKindCb.SelectedItem is not string sel) return;
+            if (sourceKindCb.SelectedItem is not string sel)
+            {
+                return;
+            }
+
             SetStagingOption("sourceKind", JsonSerializer.SerializeToElement(sel));
             BuildStatusDynamicSection(dynamicHost, sel);
         };
@@ -703,16 +826,25 @@ public partial class WidgetEditorWindow : Window
         // Font family — populated from system font names. Default to Segoe UI.
         var familyGrid = MakeRow("Family");
         var familyCb = new ComboBox();
-        foreach (var f in GetSystemFontFamilyNames()) familyCb.Items.Add(f);
+        foreach (var f in GetSystemFontFamilyNames())
+        {
+            familyCb.Items.Add(f);
+        }
+
         var initialFamily = ReadStagingString("fontFamily", "Segoe UI");
         // Selecting by string works because the items are strings.
         familyCb.SelectedItem = initialFamily;
         if (familyCb.SelectedItem == null && familyCb.Items.Contains(initialFamily))
+        {
             familyCb.SelectedItem = initialFamily;
+        }
+
         familyCb.SelectionChanged += (_, _) =>
         {
             if (familyCb.SelectedItem is string sel)
+            {
                 SetStagingOption("fontFamily", JsonSerializer.SerializeToElement(sel));
+            }
         };
         Grid.SetColumn(familyCb, 1);
         familyGrid.Children.Add(familyCb);
@@ -880,7 +1012,11 @@ public partial class WidgetEditorWindow : Window
         // values to opaque RGB hex so a stale "#80FFFFFF" from a prior session
         // can't render half-transparent.
         var current = ReadStagingString(key, fallback);
-        if (!allowAlpha) current = StripAlpha(current);
+        if (!allowAlpha)
+        {
+            current = StripAlpha(current);
+        }
+
         var tb = new TextBox { Text = current };
         var swatch = new Border
         {
@@ -895,7 +1031,10 @@ public partial class WidgetEditorWindow : Window
         {
             var raw = tb.Text;
             var brush = TryParseColorBrush(raw);
-            if (brush is null) return;
+            if (brush is null)
+            {
+                return;
+            }
             // For alpha-disallowed fields, only persist after stripping. We
             // don't rewrite the textbox in-place on every keystroke (that
             // would fight the user's typing); the swatch reflects the parsed
@@ -924,7 +1063,11 @@ public partial class WidgetEditorWindow : Window
     /// </summary>
     private static string StripAlpha(string hex)
     {
-        if (string.IsNullOrWhiteSpace(hex)) return hex;
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return hex;
+        }
+
         var trimmed = hex.Trim();
         var hadHash = trimmed.StartsWith('#');
         var body = hadHash ? trimmed[1..] : trimmed;
@@ -957,12 +1100,18 @@ public partial class WidgetEditorWindow : Window
     {
         var grid = MakeRow(label);
         var cb = new ComboBox();
-        foreach (var v in values) cb.Items.Add(v);
+        foreach (var v in values)
+        {
+            cb.Items.Add(v);
+        }
+
         cb.SelectedItem = ReadStagingString(key, fallback);
         cb.SelectionChanged += (_, _) =>
         {
             if (cb.SelectedItem is string sel)
+            {
                 SetStagingOption(key, JsonSerializer.SerializeToElement(sel));
+            }
         };
         Grid.SetColumn(cb, 1);
         grid.Children.Add(cb);
@@ -979,7 +1128,11 @@ public partial class WidgetEditorWindow : Window
     {
         get
         {
-            if (_styleToggleHighlight is not null) return _styleToggleHighlight;
+            if (_styleToggleHighlight is not null)
+            {
+                return _styleToggleHighlight;
+            }
+
             var s = new Style(typeof(ToggleButton));
             // Inherit from the default ToggleButton style so we don't lose the
             // template's default look.
@@ -1003,13 +1156,20 @@ public partial class WidgetEditorWindow : Window
     private static IReadOnlyList<string>? _cachedFontFamilyNames;
     private static IReadOnlyList<string> GetSystemFontFamilyNames()
     {
-        if (_cachedFontFamilyNames is not null) return _cachedFontFamilyNames;
+        if (_cachedFontFamilyNames is not null)
+        {
+            return _cachedFontFamilyNames;
+        }
+
         var names = new List<string>();
         foreach (var ff in System.Windows.Media.Fonts.SystemFontFamilies)
         {
             // Source is the canonical "name" (e.g. "Segoe UI"). FamilyNames.Values
             // is a richer multi-locale dictionary but Source is stable.
-            if (!string.IsNullOrWhiteSpace(ff.Source)) names.Add(ff.Source);
+            if (!string.IsNullOrWhiteSpace(ff.Source))
+            {
+                names.Add(ff.Source);
+            }
         }
         names.Sort(StringComparer.OrdinalIgnoreCase);
         _cachedFontFamilyNames = names;
@@ -1078,7 +1238,11 @@ public partial class WidgetEditorWindow : Window
         {
             var raw = tb.Text;
             var brush = TryParseColorBrush(raw);
-            if (brush is null) return;
+            if (brush is null)
+            {
+                return;
+            }
+
             swatch.Background = brush;
             SetStagingOption(opt.Key, JsonSerializer.SerializeToElement(raw));
         };
@@ -1105,8 +1269,16 @@ public partial class WidgetEditorWindow : Window
             Value = current
         };
         // Soft bounds — the input itself doesn't clamp manual entry, but the buttons do.
-        if (opt.Min.HasValue) input.Min = opt.Min.Value;
-        if (opt.Max.HasValue) input.Max = opt.Max.Value;
+        if (opt.Min.HasValue)
+        {
+            input.Min = opt.Min.Value;
+        }
+
+        if (opt.Max.HasValue)
+        {
+            input.Max = opt.Max.Value;
+        }
+
         input.SetValue(Grid.ColumnProperty, 0);
         grid.Children.Add(input);
 
@@ -1131,7 +1303,11 @@ public partial class WidgetEditorWindow : Window
             bool inSync = false;
             input.ValueChanged += (_, _, _) =>
             {
-                if (inSync) return;
+                if (inSync)
+                {
+                    return;
+                }
+
                 inSync = true;
                 try { slider.Value = Math.Max(slider.Minimum, Math.Min(slider.Maximum, input.Value)); }
                 finally { inSync = false; }
@@ -1139,7 +1315,11 @@ public partial class WidgetEditorWindow : Window
             };
             slider.ValueChanged += (_, _) =>
             {
-                if (inSync) return;
+                if (inSync)
+                {
+                    return;
+                }
+
                 inSync = true;
                 try { input.Value = (int)Math.Round(slider.Value); }
                 finally { inSync = false; }
@@ -1167,7 +1347,13 @@ public partial class WidgetEditorWindow : Window
     {
         var cb = new ComboBox();
         if (opt.EnumValues is not null)
-            foreach (var v in opt.EnumValues) cb.Items.Add(v);
+        {
+            foreach (var v in opt.EnumValues)
+            {
+                cb.Items.Add(v);
+            }
+        }
+
         var initial = ReadStagingString(opt.Key, (string)opt.Default);
         cb.SelectedItem = initial;
 
@@ -1178,7 +1364,11 @@ public partial class WidgetEditorWindow : Window
         var previous = initial;
         cb.SelectionChanged += (_, _) =>
         {
-            if (cb.SelectedItem is not string sel) return;
+            if (cb.SelectedItem is not string sel)
+            {
+                return;
+            }
+
             SetStagingOption(opt.Key, JsonSerializer.SerializeToElement(sel));
             if (opt.Key == "orientation" && sel != previous)
             {
@@ -1199,7 +1389,11 @@ public partial class WidgetEditorWindow : Window
 
     private bool ReadStagingBool(string key, bool fallback)
     {
-        if (!_staging.Options.TryGetValue(key, out var v)) return fallback;
+        if (!_staging.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind switch
         {
             JsonValueKind.True => true,
@@ -1210,23 +1404,39 @@ public partial class WidgetEditorWindow : Window
 
     private string ReadStagingString(string key, string fallback)
     {
-        if (!_staging.Options.TryGetValue(key, out var v)) return fallback;
+        if (!_staging.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == JsonValueKind.String ? v.GetString() ?? fallback : fallback;
     }
 
     private int ReadStagingInt(string key, int fallback)
     {
-        if (!_staging.Options.TryGetValue(key, out var v)) return fallback;
+        if (!_staging.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : fallback;
     }
 
     private static SolidColorBrush? TryParseColorBrush(string hex)
     {
-        if (string.IsNullOrWhiteSpace(hex)) return null;
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return null;
+        }
+
         try
         {
             var converted = ColorConverter.ConvertFromString(hex);
-            if (converted is not Color c) return null;
+            if (converted is not Color c)
+            {
+                return null;
+            }
+
             var b = new SolidColorBrush(c);
             b.Freeze();
             return b;

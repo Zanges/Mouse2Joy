@@ -31,7 +31,7 @@ public sealed class AxisWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
@@ -41,17 +41,23 @@ public sealed class AxisWidget : OverlayWidget
         var (rawValue, bipolar, _) = ReadSource(source);
 
         if (ReadBool("showBackground", false))
-            dc.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        {
+            drawingContext.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        }
 
         // Inset a couple of pixels so the bar doesn't touch the widget edge.
         const double pad = 2;
         var barRect = new Rect(pad, pad, Math.Max(0, w - 2 * pad), Math.Max(0, h - 2 * pad));
-        dc.DrawRectangle(null, Outline, barRect);
+        drawingContext.DrawRectangle(null, Outline, barRect);
 
         if (vertical)
-            DrawVerticalFill(dc, accent, barRect, rawValue, bipolar);
+        {
+            DrawVerticalFill(drawingContext, accent, barRect, rawValue, bipolar);
+        }
         else
-            DrawHorizontalFill(dc, accent, barRect, rawValue, bipolar);
+        {
+            DrawHorizontalFill(drawingContext, accent, barRect, rawValue, bipolar);
+        }
     }
 
     /// <summary>
@@ -79,9 +85,13 @@ public sealed class AxisWidget : OverlayWidget
             var halfW = bar.Width / 2.0;
             var midX = bar.X + halfW;
             if (v >= 0)
+            {
                 dc.DrawRectangle(accent, null, new Rect(midX, bar.Y, halfW * v, bar.Height));
+            }
             else
+            {
                 dc.DrawRectangle(accent, null, new Rect(midX + halfW * v, bar.Y, halfW * -v, bar.Height));
+            }
         }
         else
         {
@@ -99,9 +109,13 @@ public sealed class AxisWidget : OverlayWidget
             var midY = bar.Y + halfH;
             // Bipolar Y: positive = up (gamepad convention), negative = down.
             if (v >= 0)
+            {
                 dc.DrawRectangle(accent, null, new Rect(bar.X, midY - halfH * v, bar.Width, halfH * v));
+            }
             else
+            {
                 dc.DrawRectangle(accent, null, new Rect(bar.X, midY, bar.Width, halfH * -v));
+            }
         }
         else
         {

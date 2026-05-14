@@ -36,7 +36,9 @@ internal static class V1ToV2
     {
         var bindings = new List<Binding>(v1.Bindings.Count);
         foreach (var lb in v1.Bindings)
+        {
             bindings.Add(MigrateBinding(lb));
+        }
 
         return new Profile
         {
@@ -71,13 +73,24 @@ internal static class V1ToV2
         {
             var c = lb.Curve;
             if (c.Sensitivity != 1.0)
+            {
                 modifiers.Add(new OutputScaleModifier(c.Sensitivity));
+            }
+
             if (c.InnerDeadzone > 0)
+            {
                 modifiers.Add(new InnerDeadzoneModifier(c.InnerDeadzone));
+            }
+
             if (c.OuterSaturation > 0)
+            {
                 modifiers.Add(new OuterSaturationModifier(c.OuterSaturation));
+            }
+
             if (c.Exponent != 1.0)
+            {
                 modifiers.Add(new ResponseCurveModifier(c.Exponent));
+            }
         }
 
         return new Binding

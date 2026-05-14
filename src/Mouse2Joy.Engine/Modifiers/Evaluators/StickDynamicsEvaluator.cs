@@ -9,7 +9,7 @@ namespace Mouse2Joy.Engine.Modifiers.Evaluators;
 /// </summary>
 internal sealed class StickDynamicsEvaluator : IModifierEvaluator
 {
-    private StickDynamicsModifier _config;
+    private readonly StickDynamicsModifier _config;
     private double _deflection;
 
     public StickDynamicsEvaluator(StickDynamicsModifier config)
@@ -26,7 +26,9 @@ internal sealed class StickDynamicsEvaluator : IModifierEvaluator
         var delta = input.DeltaValue;
 
         if (dt <= 0)
+        {
             return Signal.Scalar(_deflection);
+        }
 
         switch (_config.Mode)
         {
@@ -36,8 +38,14 @@ internal sealed class StickDynamicsEvaluator : IModifierEvaluator
                     var maxVel = _config.Param2 <= 0 ? 1.0 : _config.Param2;
                     var velocity = delta / dt;
                     var target = velocity / maxVel;
-                    if (target > 1.0) target = 1.0;
-                    else if (target < -1.0) target = -1.0;
+                    if (target > 1.0)
+                    {
+                        target = 1.0;
+                    }
+                    else if (target < -1.0)
+                    {
+                        target = -1.0;
+                    }
 
                     var decay = _config.Param1 < 0 ? 0 : _config.Param1;
                     var weight = Math.Exp(-decay * dt);
@@ -62,8 +70,14 @@ internal sealed class StickDynamicsEvaluator : IModifierEvaluator
                 }
         }
 
-        if (_deflection > 1.0) _deflection = 1.0;
-        else if (_deflection < -1.0) _deflection = -1.0;
+        if (_deflection > 1.0)
+        {
+            _deflection = 1.0;
+        }
+        else if (_deflection < -1.0)
+        {
+            _deflection = -1.0;
+        }
 
         return Signal.Scalar(_deflection);
     }

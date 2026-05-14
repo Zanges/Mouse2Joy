@@ -24,7 +24,7 @@ public sealed class TwoAxisWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
@@ -38,11 +38,13 @@ public sealed class TwoAxisWidget : OverlayWidget
         var radius = working * 0.45;
 
         if (ReadBool("showBackground", false))
-            dc.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        {
+            drawingContext.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        }
 
-        dc.DrawEllipse(null, Outline, center, radius, radius);
-        dc.DrawLine(Outline, new Point(center.X - radius, center.Y), new Point(center.X + radius, center.Y));
-        dc.DrawLine(Outline, new Point(center.X, center.Y - radius), new Point(center.X, center.Y + radius));
+        drawingContext.DrawEllipse(null, Outline, center, radius, radius);
+        drawingContext.DrawLine(Outline, new Point(center.X - radius, center.Y), new Point(center.X + radius, center.Y));
+        drawingContext.DrawLine(Outline, new Point(center.X, center.Y - radius), new Point(center.X, center.Y + radius));
 
         var (dx, dy) = source switch
         {
@@ -54,6 +56,6 @@ public sealed class TwoAxisWidget : OverlayWidget
         // WPF Y is downward; gamepad Y conventionally up = positive. Invert for natural display.
         var py = center.Y - dy * radius;
         var dotR = Math.Max(2, working * 0.06);
-        dc.DrawEllipse(accent, null, new Point(px, py), dotR, dotR);
+        drawingContext.DrawEllipse(accent, null, new Point(px, py), dotR, dotR);
     }
 }

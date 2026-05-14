@@ -14,7 +14,10 @@ internal sealed class DigitalLatchAdapter : ISourceAdapter
     public DigitalLatchAdapter(InputSource source)
     {
         if (source is not (MouseButtonSource or KeySource))
+        {
             throw new ArgumentException("DigitalLatchAdapter only supports mouse-button and key sources.", nameof(source));
+        }
+
         _source = source;
     }
 

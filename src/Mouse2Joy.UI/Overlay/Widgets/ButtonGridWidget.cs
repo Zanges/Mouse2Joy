@@ -32,7 +32,7 @@ public sealed class ButtonGridWidget : OverlayWidget
     protected override Size MeasureOverride(Size availableSize)
         => new(Config.Width, Config.Height);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = Math.Max(0, Config.Width);
         var h = Math.Max(0, Config.Height);
@@ -40,7 +40,9 @@ public sealed class ButtonGridWidget : OverlayWidget
         var compact = ReadBool("compact", false);
 
         if (ReadBool("showBackground", false))
-            dc.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        {
+            drawingContext.DrawRoundedRectangle(BgBrush, Outline, new Rect(0, 0, w, h), 6, 6);
+        }
 
         // 8 columns × 2 rows = 16 cells; only 15 used. Cell size derived from W/H.
         const int cols = 8;
@@ -60,12 +62,12 @@ public sealed class ButtonGridWidget : OverlayWidget
             var rect = new Rect(x + 1, y + 1, Math.Max(0, cellW - 2), Math.Max(0, cellH - 2));
             // Pressed cell: filled with accent. Unpressed: bg-tinted to keep the cell visible
             // even when showBackground is off (the panel-wide bg isn't drawn in that case).
-            dc.DrawRoundedRectangle(pressed ? accent : BgBrush, Outline, rect, 3, 3);
+            drawingContext.DrawRoundedRectangle(pressed ? accent : BgBrush, Outline, rect, 3, 3);
             if (!compact && rect.Width > 6 && rect.Height > 6)
             {
                 var ft = new FormattedText(Layout[i].Label, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                     new Typeface("Consolas"), fontSize, TextBrush, 1.0);
-                dc.DrawText(ft, new Point(rect.X + (rect.Width - ft.Width) / 2, rect.Y + (rect.Height - ft.Height) / 2));
+                drawingContext.DrawText(ft, new Point(rect.X + (rect.Width - ft.Width) / 2, rect.Y + (rect.Height - ft.Height) / 2));
             }
         }
     }

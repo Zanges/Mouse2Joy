@@ -39,7 +39,10 @@ public sealed class KeyCaptureBox : TextBox
 
     private static void OnAnyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is KeyCaptureBox b) b.UpdateText();
+        if (d is KeyCaptureBox b)
+        {
+            b.UpdateText();
+        }
     }
 
     private void UpdateText()
@@ -50,10 +53,26 @@ public sealed class KeyCaptureBox : TextBox
             return;
         }
         var parts = new List<string>();
-        if ((CapturedModifiers & KeyModifiers.Ctrl) != 0) parts.Add("Ctrl");
-        if ((CapturedModifiers & KeyModifiers.Shift) != 0) parts.Add("Shift");
-        if ((CapturedModifiers & KeyModifiers.Alt) != 0) parts.Add("Alt");
-        if ((CapturedModifiers & KeyModifiers.Win) != 0) parts.Add("Win");
+        if ((CapturedModifiers & KeyModifiers.Ctrl) != 0)
+        {
+            parts.Add("Ctrl");
+        }
+
+        if ((CapturedModifiers & KeyModifiers.Shift) != 0)
+        {
+            parts.Add("Shift");
+        }
+
+        if ((CapturedModifiers & KeyModifiers.Alt) != 0)
+        {
+            parts.Add("Alt");
+        }
+
+        if ((CapturedModifiers & KeyModifiers.Win) != 0)
+        {
+            parts.Add("Win");
+        }
+
         parts.Add($"Sc:{CapturedKey.Scancode:X2}{(CapturedKey.Extended ? "(E0)" : "")}");
         Text = string.Join("+", parts);
     }
@@ -83,13 +102,31 @@ public sealed class KeyCaptureBox : TextBox
         // hook later. UI is just a prototype-of-binding tool.
         var (sc, ext) = MapScancode(key);
         var mods = KeyModifiers.None;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) mods |= KeyModifiers.Ctrl;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) mods |= KeyModifiers.Shift;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) mods |= KeyModifiers.Alt;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) mods |= KeyModifiers.Win;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            mods |= KeyModifiers.Ctrl;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            mods |= KeyModifiers.Shift;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            mods |= KeyModifiers.Alt;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows))
+        {
+            mods |= KeyModifiers.Win;
+        }
 
         // Don't capture pure-modifier keys as the "main" key.
-        if (IsModifierKey(key)) return;
+        if (IsModifierKey(key))
+        {
+            return;
+        }
 
         CapturedKey = new VirtualKey(sc, ext);
         CapturedModifiers = mods;

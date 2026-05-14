@@ -15,7 +15,13 @@ using Serilog.Extensions.Logging;
 
 namespace Mouse2Joy.App;
 
+// CA1001: App owns several IDisposable fields but is not itself IDisposable.
+// This is correct for a WPF Application -- the framework controls the
+// lifecycle and calls OnExit (overridden below) for cleanup. Making App
+// itself IDisposable would not be called by WPF and adds no value.
+#pragma warning disable CA1001
 public partial class App : Application
+#pragma warning restore CA1001
 {
     private SingleInstanceGuard? _guard;
     private InputEngine? _engine;
@@ -84,7 +90,10 @@ public partial class App : Application
         if (!string.IsNullOrEmpty(settings.LastProfileName))
         {
             var p = _profileStore.Load(settings.LastProfileName);
-            if (p is not null) _engine.SetActiveProfile(p);
+            if (p is not null)
+            {
+                _engine.SetActiveProfile(p);
+            }
         }
 
         // Start input capture immediately so hotkeys (soft/hard toggle, profile switch, panic)
@@ -120,7 +129,10 @@ public partial class App : Application
 
         _overlayCoordinator = new OverlayCoordinator(_engine);
         _overlayCoordinator.Apply(settings.Overlay);
-        if (settings.Overlay.Enabled) _overlayCoordinator.Show();
+        if (settings.Overlay.Enabled)
+        {
+            _overlayCoordinator.Show();
+        }
 
         SetupTray();
 
@@ -136,7 +148,10 @@ public partial class App : Application
             Log.Warning("Could not register panic hotkey Ctrl+Shift+F12 (already in use?). Continuing without it.");
         }
 
-        if (!settings.StartMinimized) _main.Show();
+        if (!settings.StartMinimized)
+        {
+            _main.Show();
+        }
 
         base.OnStartup(e);
     }
@@ -213,7 +228,11 @@ public partial class App : Application
     /// </summary>
     private void EnsureEngineArmed()
     {
-        if (_engine is null) return;
+        if (_engine is null)
+        {
+            return;
+        }
+
         try { _engine.EnterSoftMute(); }
         catch (Exception ex)
         {
@@ -230,9 +249,20 @@ public partial class App : Application
 
     private void SetOverlayVisible(bool visible)
     {
-        if (_overlayCoordinator is null) return;
-        if (visible) _overlayCoordinator.Show();
-        else _overlayCoordinator.Hide();
+        if (_overlayCoordinator is null)
+        {
+            return;
+        }
+
+        if (visible)
+        {
+            _overlayCoordinator.Show();
+        }
+        else
+        {
+            _overlayCoordinator.Hide();
+        }
+
         var s = _settingsStore!.Load();
         s = s with { Overlay = s.Overlay with { Enabled = visible } };
         _settingsStore.Save(s);
@@ -245,7 +275,11 @@ public partial class App : Application
     /// </summary>
     private void ReloadOverlayLayout()
     {
-        if (_overlayCoordinator is null || _settingsStore is null) return;
+        if (_overlayCoordinator is null || _settingsStore is null)
+        {
+            return;
+        }
+
         try
         {
             var s = _settingsStore.Load();
@@ -259,8 +293,15 @@ public partial class App : Application
 
     private void SwitchProfileByName(string name)
     {
-        if (_profileStore is null || _engine is null) return;
+        if (_profileStore is null || _engine is null)
+        {
+            return;
+        }
+
         var p = _profileStore.Load(name);
-        if (p is not null) _engine.SetActiveProfile(p);
+        if (p is not null)
+        {
+            _engine.SetActiveProfile(p);
+        }
     }
 }

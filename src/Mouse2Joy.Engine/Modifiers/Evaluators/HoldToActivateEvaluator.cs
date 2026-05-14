@@ -29,7 +29,10 @@ internal sealed class HoldToActivateEvaluator : IModifierEvaluator
             return Signal.Digital(false);
         }
         if (_config.HoldSeconds <= 0)
+        {
             return Signal.Digital(true);
+        }
+
         _heldFor += dt;
         return Signal.Digital(_heldFor >= _config.HoldSeconds);
     }

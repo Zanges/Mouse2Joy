@@ -23,7 +23,13 @@ public sealed class ViGEmVirtualPad : IVirtualPad
 
     public bool IsConnected
     {
-        get { lock (_gate) return _controller is not null; }
+        get
+        {
+            lock (_gate)
+            {
+                return _controller is not null;
+            }
+        }
     }
 
     /// <summary>
@@ -39,7 +45,11 @@ public sealed class ViGEmVirtualPad : IVirtualPad
     {
         lock (_gate)
         {
-            if (_client is not null) return;
+            if (_client is not null)
+            {
+                return;
+            }
+
             try
             {
                 _client = new ViGEmClient();
@@ -64,7 +74,10 @@ public sealed class ViGEmVirtualPad : IVirtualPad
     {
         lock (_gate)
         {
-            if (_controller is not null) return;
+            if (_controller is not null)
+            {
+                return;
+            }
 
             try
             {
@@ -108,8 +121,16 @@ public sealed class ViGEmVirtualPad : IVirtualPad
     // hiccup; everything else propagates.
     private static bool IsSpuriousSuccessException(Exception ex)
     {
-        if (ex is VigemBusNotFoundException) return false;
-        if (ex.HResult == 0) return true;
+        if (ex is VigemBusNotFoundException)
+        {
+            return false;
+        }
+
+        if (ex.HResult == 0)
+        {
+            return true;
+        }
+
         return ex.Message.Contains("operation completed successfully", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -117,7 +138,11 @@ public sealed class ViGEmVirtualPad : IVirtualPad
     {
         lock (_gate)
         {
-            if (_controller is null) return;
+            if (_controller is null)
+            {
+                return;
+            }
+
             try { _controller.Disconnect(); }
             catch (Exception ex) { _logger.LogWarning(ex, "Disconnect threw"); }
             _controller = null;
@@ -127,8 +152,15 @@ public sealed class ViGEmVirtualPad : IVirtualPad
     public void Submit(in XInputReport report)
     {
         IXbox360Controller? c;
-        lock (_gate) c = _controller;
-        if (c is null) return;
+        lock (_gate)
+        {
+            c = _controller;
+        }
+
+        if (c is null)
+        {
+            return;
+        }
 
         c.SetAxisValue(Xbox360Axis.LeftThumbX, report.LeftThumbX);
         c.SetAxisValue(Xbox360Axis.LeftThumbY, report.LeftThumbY);

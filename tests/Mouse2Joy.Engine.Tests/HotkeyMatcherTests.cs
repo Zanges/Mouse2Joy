@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Mouse2Joy.Engine;
 using Mouse2Joy.Engine.Hotkeys;
 using Mouse2Joy.Persistence.Models;
 

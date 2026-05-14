@@ -38,7 +38,11 @@ public abstract class OverlayWidget : FrameworkElement
 
     protected bool ReadBool(string key, bool fallback)
     {
-        if (!Config.Options.TryGetValue(key, out var v)) return fallback;
+        if (!Config.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind switch
         {
             JsonValueKind.True => true,
@@ -49,13 +53,21 @@ public abstract class OverlayWidget : FrameworkElement
 
     protected string ReadString(string key, string fallback)
     {
-        if (!Config.Options.TryGetValue(key, out var v)) return fallback;
+        if (!Config.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == JsonValueKind.String ? v.GetString() ?? fallback : fallback;
     }
 
     protected int ReadInt(string key, int fallback)
     {
-        if (!Config.Options.TryGetValue(key, out var v)) return fallback;
+        if (!Config.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : fallback;
     }
 
@@ -66,11 +78,19 @@ public abstract class OverlayWidget : FrameworkElement
     protected Brush ReadColorBrush(string key, Brush fallback)
     {
         var hex = ReadString(key, "");
-        if (string.IsNullOrEmpty(hex)) return fallback;
+        if (string.IsNullOrEmpty(hex))
+        {
+            return fallback;
+        }
+
         try
         {
             var converted = ColorConverter.ConvertFromString(hex);
-            if (converted is not Color c) return fallback;
+            if (converted is not Color c)
+            {
+                return fallback;
+            }
+
             var brush = new SolidColorBrush(c);
             brush.Freeze();
             return brush;
@@ -87,11 +107,19 @@ public abstract class OverlayWidget : FrameworkElement
     protected Pen ReadColorPen(string key, Pen fallback, double thickness = 1.0)
     {
         var hex = ReadString(key, "");
-        if (string.IsNullOrEmpty(hex)) return fallback;
+        if (string.IsNullOrEmpty(hex))
+        {
+            return fallback;
+        }
+
         try
         {
             var converted = ColorConverter.ConvertFromString(hex);
-            if (converted is not Color c) return fallback;
+            if (converted is not Color c)
+            {
+                return fallback;
+            }
+
             var brush = new SolidColorBrush(c);
             brush.Freeze();
             var pen = new Pen(brush, thickness);

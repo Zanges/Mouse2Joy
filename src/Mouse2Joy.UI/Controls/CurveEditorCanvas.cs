@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -122,30 +120,57 @@ public sealed class CurveEditorCanvas : FrameworkElement
         var h = ActualHeight;
         var x = XMin + (p.X / w) * (XMax - XMin);
         var y = YMin + (1.0 - p.Y / h) * (YMax - YMin);
-        if (x < XMin) x = XMin;
-        if (x > XMax) x = XMax;
-        if (y < YMin) y = YMin;
-        if (y > YMax) y = YMax;
+        if (x < XMin)
+        {
+            x = XMin;
+        }
+
+        if (x > XMax)
+        {
+            x = XMax;
+        }
+
+        if (y < YMin)
+        {
+            y = YMin;
+        }
+
+        if (y > YMax)
+        {
+            y = YMax;
+        }
+
         return (x, y);
     }
 
     private int HitTestPoint(Point mousePos)
     {
-        if (Points is null) return -1;
+        if (Points is null)
+        {
+            return -1;
+        }
+
         for (int i = 0; i < Points.Count; i++)
         {
             var p = Points[i];
             var px = CurveToPixel(p.X, p.Y);
             var dx = mousePos.X - px.X;
             var dy = mousePos.Y - px.Y;
-            if (dx * dx + dy * dy <= HitRadiusPx * HitRadiusPx) return i;
+            if (dx * dx + dy * dy <= HitRadiusPx * HitRadiusPx)
+            {
+                return i;
+            }
         }
         return -1;
     }
 
     private static double SnapIfShift(double value)
     {
-        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return value;
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return value;
+        }
+
         return Math.Round(value / SnapIncrement) * SnapIncrement;
     }
 
@@ -153,7 +178,11 @@ public sealed class CurveEditorCanvas : FrameworkElement
 
     private void OnMouseLeftDown(object sender, MouseButtonEventArgs e)
     {
-        if (Points is null) return;
+        if (Points is null)
+        {
+            return;
+        }
+
         Focus();
         var pos = e.GetPosition(this);
         var hit = HitTestPoint(pos);
@@ -168,7 +197,10 @@ public sealed class CurveEditorCanvas : FrameworkElement
         }
 
         // Click in empty area → add new point at click coords (if under max).
-        if (Points.Count >= MaxPointCount) return;
+        if (Points.Count >= MaxPointCount)
+        {
+            return;
+        }
 
         var (cx, cy) = PixelToCurve(pos);
         cx = SnapIfShift(cx);
@@ -210,7 +242,10 @@ public sealed class CurveEditorCanvas : FrameworkElement
             return;
         }
 
-        if (Points is null || _draggingIndex >= Points.Count) return;
+        if (Points is null || _draggingIndex >= Points.Count)
+        {
+            return;
+        }
 
         var (cx, cy) = PixelToCurve(pos);
         cx = SnapIfShift(cx);
@@ -235,7 +270,11 @@ public sealed class CurveEditorCanvas : FrameworkElement
                 break;
             }
         }
-        if (newIdx >= 0) _draggingIndex = newIdx;
+        if (newIdx >= 0)
+        {
+            _draggingIndex = newIdx;
+        }
+
         Points = sorted;
         e.Handled = true;
     }
@@ -253,16 +292,30 @@ public sealed class CurveEditorCanvas : FrameworkElement
 
     private void OnMouseRightDown(object sender, MouseButtonEventArgs e)
     {
-        if (Points is null) return;
-        if (Points.Count <= MinPointCount) return;
+        if (Points is null)
+        {
+            return;
+        }
+
+        if (Points.Count <= MinPointCount)
+        {
+            return;
+        }
 
         var pos = e.GetPosition(this);
         var hit = HitTestPoint(pos);
-        if (hit < 0) return;
+        if (hit < 0)
+        {
+            return;
+        }
 
         var newPoints = Points.Where((_, i) => i != hit).ToArray();
         Points = newPoints;
-        if (_hoverIndex == hit) _hoverIndex = -1;
+        if (_hoverIndex == hit)
+        {
+            _hoverIndex = -1;
+        }
+
         e.Handled = true;
     }
 
@@ -277,13 +330,16 @@ public sealed class CurveEditorCanvas : FrameworkElement
 
     // --- Rendering -------------------------------------------------------
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = ActualWidth;
         var h = ActualHeight;
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
 
-        dc.DrawRectangle(Bg, null, new Rect(0, 0, w, h));
+        drawingContext.DrawRectangle(Bg, null, new Rect(0, 0, w, h));
 
         // Grid: faint lines at quarter points; bolder line at axis (x=0 in
         // full-range mode, y=0 always).
@@ -294,7 +350,7 @@ public sealed class CurveEditorCanvas : FrameworkElement
             {
                 var x = i / 4.0;
                 var px = CurveToPixel(x, 0).X;
-                dc.DrawLine(GridPenLight, new Point(px, 0), new Point(px, h));
+                drawingContext.DrawLine(GridPenLight, new Point(px, 0), new Point(px, h));
             }
         }
         else
@@ -303,29 +359,29 @@ public sealed class CurveEditorCanvas : FrameworkElement
             foreach (var x in new[] { -0.5, 0.5 })
             {
                 var px = CurveToPixel(x, 0).X;
-                dc.DrawLine(GridPenLight, new Point(px, 0), new Point(px, h));
+                drawingContext.DrawLine(GridPenLight, new Point(px, 0), new Point(px, h));
             }
             var axisX = CurveToPixel(0, 0).X;
-            dc.DrawLine(GridPenAxis, new Point(axisX, 0), new Point(axisX, h));
+            drawingContext.DrawLine(GridPenAxis, new Point(axisX, 0), new Point(axisX, h));
         }
         // Horizontal grid at y=-0.5, 0.5; axis at y=0.
         foreach (var y in new[] { -0.5, 0.5 })
         {
             var py = CurveToPixel(0, y).Y;
-            dc.DrawLine(GridPenLight, new Point(0, py), new Point(w, py));
+            drawingContext.DrawLine(GridPenLight, new Point(0, py), new Point(w, py));
         }
         var axisY = CurveToPixel(0, 0).Y;
-        dc.DrawLine(GridPenAxis, new Point(0, axisY), new Point(w, axisY));
+        drawingContext.DrawLine(GridPenAxis, new Point(0, axisY), new Point(w, axisY));
 
         // Curve (when we have ≥2 points).
         if (Points is { Count: >= 2 })
         {
-            DrawCurve(dc, w, h);
-            DrawPoints(dc);
+            DrawCurve(drawingContext, w, h);
+            DrawPoints(drawingContext);
         }
         else
         {
-            DrawHint(dc, w, h, "Add at least 2 points");
+            DrawHint(drawingContext, w, h, "Add at least 2 points");
         }
     }
 
@@ -351,8 +407,14 @@ public sealed class CurveEditorCanvas : FrameworkElement
                 var x = XMin + (XMax - XMin) * i / N;
                 var y = eval.Evaluate(Signal.Scalar(x), 0.01).ScalarValue;
                 var px = CurveToPixel(x, y);
-                if (i == 0) ctx.BeginFigure(px, false, false);
-                else ctx.LineTo(px, true, false);
+                if (i == 0)
+                {
+                    ctx.BeginFigure(px, false, false);
+                }
+                else
+                {
+                    ctx.LineTo(px, true, false);
+                }
             }
         }
         geometry.Freeze();

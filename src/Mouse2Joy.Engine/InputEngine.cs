@@ -24,7 +24,7 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
     private readonly HotkeyModifierTracker _modTracker = new();
 
     private Profile _activeProfile = new() { Name = "" };
-    private BindingResolver _resolver;
+    private readonly BindingResolver _resolver;
     private HotkeySettings _hotkeys = new(null, null, new Dictionary<string, HotkeyBinding>());
 
     private volatile int _mode = (int)EngineMode.Off;
@@ -85,7 +85,10 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
     public void StartCapture()
     {
         if (_tickThread is not null)
+        {
             return;
+        }
+
         _cts = new CancellationTokenSource();
         _input.StartCapture();
         _input.SetSuppressionMode(SuppressionMode.PassThrough);
@@ -103,7 +106,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
     /// <summary>Connect the virtual pad and start emulating per the active profile. Idempotent.</summary>
     public void EnableEmulation()
     {
-        if (Mode == EngineMode.Active) return;
+        if (Mode == EngineMode.Active)
+        {
+            return;
+        }
+
         try
         {
             _pad.Connect();
@@ -127,7 +134,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
     /// </summary>
     public void EnterSoftMute()
     {
-        if (Mode == EngineMode.SoftMuted) return;
+        if (Mode == EngineMode.SoftMuted)
+        {
+            return;
+        }
+
         try
         {
             _pad.Connect();
@@ -145,7 +156,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
     /// <summary>Disconnect the virtual pad and stop suppressing input. Capture stays on so hotkeys still fire.</summary>
     public void DisableEmulation()
     {
-        if (Mode == EngineMode.Off) return;
+        if (Mode == EngineMode.Off)
+        {
+            return;
+        }
+
         _buckets.ResetForIdleReport();
         try { _pad.Submit(XInputReport.Idle); } catch { /* ignore */ }
         try { _pad.Disconnect(); } catch { /* ignore */ }
@@ -241,15 +256,25 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
         // already current by the time we're called (capture thread is single-threaded).
         if (HotkeyMatcher.Match(in ev, _hotkeys.Hard, _modTracker.Held)
             || HotkeyMatcher.Match(in ev, _hotkeys.Soft, _modTracker.Held))
+        {
             return true;
+        }
+
         if (_hotkeys.ProfileSwitch is not null)
         {
             foreach (var kv in _hotkeys.ProfileSwitch)
+            {
                 if (HotkeyMatcher.Match(in ev, kv.Value, _modTracker.Held))
+                {
                     return true;
+                }
+            }
         }
         if (Mode != EngineMode.Active)
+        {
             return false;
+        }
+
         return _resolver.ShouldSwallow(in ev);
     }
 
@@ -286,7 +311,9 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
         }
 
         if (Mode != EngineMode.Active)
+        {
             return;
+        }
 
         _events.Writer.TryWrite(ev);
     }
@@ -308,7 +335,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
 
             var nowTicks = sw.ElapsedTicks;
             var dt = (nowTicks - lastTickTicks) / (double)Stopwatch.Frequency;
-            if (dt <= 0) dt = periodMs / 1000.0;
+            if (dt <= 0)
+            {
+                dt = periodMs / 1000.0;
+            }
+
             lastTickTicks = nowTicks;
 
             var mode = Mode;
@@ -398,7 +429,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
         var b = XInputButtons.None;
         foreach (var kv in _buckets.Buttons)
         {
-            if (!kv.Value) continue;
+            if (!kv.Value)
+            {
+                continue;
+            }
+
             b |= kv.Key switch
             {
                 GamepadButton.A => XInputButtons.A,
@@ -417,7 +452,11 @@ public sealed class InputEngine : IEngineStateSource, IDisposable
         }
         foreach (var kv in _buckets.DPad)
         {
-            if (!kv.Value) continue;
+            if (!kv.Value)
+            {
+                continue;
+            }
+
             b |= kv.Key switch
             {
                 DPadDirection.Up => XInputButtons.DPadUp,

@@ -379,12 +379,34 @@ public sealed record ParametricCurveModifier : Modifier, ICurveData
     // for this modifier just like for the others.
     public bool Equals(ParametricCurveModifier? other)
     {
-        if (other is null) return false;
-        if (Enabled != other.Enabled) return false;
-        if (Symmetric != other.Symmetric) return false;
-        if (Points.Count != other.Points.Count) return false;
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (Enabled != other.Enabled)
+        {
+            return false;
+        }
+
+        if (Symmetric != other.Symmetric)
+        {
+            return false;
+        }
+
+        if (Points.Count != other.Points.Count)
+        {
+            return false;
+        }
+
         for (int i = 0; i < Points.Count; i++)
-            if (Points[i] != other.Points[i]) return false;
+        {
+            if (Points[i] != other.Points[i])
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -393,7 +415,11 @@ public sealed record ParametricCurveModifier : Modifier, ICurveData
         var hash = new HashCode();
         hash.Add(Enabled);
         hash.Add(Symmetric);
-        foreach (var p in Points) hash.Add(p);
+        foreach (var p in Points)
+        {
+            hash.Add(p);
+        }
+
         return hash.ToHashCode();
     }
 }
@@ -437,12 +463,34 @@ public sealed record CurveEditorModifier : Modifier, ICurveData
     // List-field equality override — same reasoning as ParametricCurveModifier.
     public bool Equals(CurveEditorModifier? other)
     {
-        if (other is null) return false;
-        if (Enabled != other.Enabled) return false;
-        if (Symmetric != other.Symmetric) return false;
-        if (Points.Count != other.Points.Count) return false;
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (Enabled != other.Enabled)
+        {
+            return false;
+        }
+
+        if (Symmetric != other.Symmetric)
+        {
+            return false;
+        }
+
+        if (Points.Count != other.Points.Count)
+        {
+            return false;
+        }
+
         for (int i = 0; i < Points.Count; i++)
-            if (Points[i] != other.Points[i]) return false;
+        {
+            if (Points[i] != other.Points[i])
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -451,7 +499,11 @@ public sealed record CurveEditorModifier : Modifier, ICurveData
         var hash = new HashCode();
         hash.Add(Enabled);
         hash.Add(Symmetric);
-        foreach (var p in Points) hash.Add(p);
+        foreach (var p in Points)
+        {
+            hash.Add(p);
+        }
+
         return hash.ToHashCode();
     }
 }

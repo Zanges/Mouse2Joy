@@ -1,6 +1,5 @@
 using System.Text.Json;
 using FluentAssertions;
-using Mouse2Joy.Persistence;
 using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.Persistence.Tests;

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using Mouse2Joy.Engine.Modifiers;
@@ -70,22 +69,29 @@ public sealed class ChainPreviewControl : FrameworkElement
 
     protected override Size MeasureOverride(Size availableSize) => new(200, 200);
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var w = ActualWidth;
         var h = ActualHeight;
-        if (w <= 0 || h <= 0) return;
-        dc.DrawRectangle(Bg, null, new Rect(0, 0, w, h));
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
+
+        drawingContext.DrawRectangle(Bg, null, new Rect(0, 0, w, h));
 
         var src = Source;
         var tgt = Target;
         var mods = Modifiers ?? Array.Empty<Modifier>();
-        if (src is null || tgt is null) return;
+        if (src is null || tgt is null)
+        {
+            return;
+        }
 
         var validation = ChainValidator.Validate(src, mods, tgt);
         if (!validation.IsValid)
         {
-            DrawHint(dc, w, h, "Invalid chain — fix to preview");
+            DrawHint(drawingContext, w, h, "Invalid chain — fix to preview");
             return;
         }
 
@@ -95,25 +101,25 @@ public sealed class ChainPreviewControl : FrameworkElement
         switch (sourceType, targetType)
         {
             case (SignalType.Digital, SignalType.Digital):
-                DrawDigitalToDigital(dc, w, h, src, mods);
+                DrawDigitalToDigital(drawingContext, w, h, src, mods);
                 break;
             case (SignalType.Digital, SignalType.Scalar):
-                DrawDigitalToScalar(dc, w, h, src, mods);
+                DrawDigitalToScalar(drawingContext, w, h, src, mods);
                 break;
             case (SignalType.Delta, SignalType.Scalar):
-                DrawDeltaToScalar(dc, w, h, src, mods, tgt);
+                DrawDeltaToScalar(drawingContext, w, h, src, mods, tgt);
                 break;
             case (SignalType.Delta, SignalType.Digital):
-                DrawDeltaToScalar(dc, w, h, src, mods, tgt);
+                DrawDeltaToScalar(drawingContext, w, h, src, mods, tgt);
                 break;
             default:
-                DrawHint(dc, w, h, "(no preview)");
+                DrawHint(drawingContext, w, h, "(no preview)");
                 break;
         }
 
         // Center cross + quarter grid.
-        dc.DrawLine(GridPen, new Point(w / 2, 0), new Point(w / 2, h));
-        dc.DrawLine(GridPen, new Point(0, h / 2), new Point(w, h / 2));
+        drawingContext.DrawLine(GridPen, new Point(w / 2, 0), new Point(w / 2, h));
+        drawingContext.DrawLine(GridPen, new Point(0, h / 2), new Point(w, h / 2));
     }
 
     private void DrawHint(DrawingContext dc, double w, double h, string text)
@@ -184,8 +190,14 @@ public sealed class ChainPreviewControl : FrameworkElement
                 var y = EvaluateScalarChain(scalarMods, x);
                 var px = (x + 1) / 2 * w;
                 var py = (1 - (y + 1) / 2) * h;
-                if (i == 0) ctx.BeginFigure(new Point(px, py), false, false);
-                else ctx.LineTo(new Point(px, py), true, false);
+                if (i == 0)
+                {
+                    ctx.BeginFigure(new Point(px, py), false, false);
+                }
+                else
+                {
+                    ctx.LineTo(new Point(px, py), true, false);
+                }
             }
         }
         geometry.Freeze();
@@ -198,11 +210,18 @@ public sealed class ChainPreviewControl : FrameworkElement
         Signal sig = Signal.Scalar(x);
         foreach (var m in mods)
         {
-            if (!m.Enabled) continue;
+            if (!m.Enabled)
+            {
+                continue;
+            }
             // Skip non-Scalar→Scalar modifiers defensively (shouldn't happen
             // on a validated chain past the StickDynamics, but guard anyway).
             var io = ModifierTypes.GetIO(m);
-            if (io.In != SignalType.Scalar) continue;
+            if (io.In != SignalType.Scalar)
+            {
+                continue;
+            }
+
             var ev = ChainBuilder.BuildEvaluator(m);
             sig = ev.Evaluate(in sig, 0.01);
         }
@@ -245,7 +264,11 @@ public sealed class ChainPreviewControl : FrameworkElement
         var sig = Signal.Digital(digitalIn);
         foreach (var m in mods)
         {
-            if (!m.Enabled) continue;
+            if (!m.Enabled)
+            {
+                continue;
+            }
+
             var ev = ChainBuilder.BuildEvaluator(m);
             sig = ev.Evaluate(in sig, 0.01);
         }
@@ -257,7 +280,11 @@ public sealed class ChainPreviewControl : FrameworkElement
         var sig = Signal.Digital(digitalIn);
         foreach (var m in mods)
         {
-            if (!m.Enabled) continue;
+            if (!m.Enabled)
+            {
+                continue;
+            }
+
             var ev = ChainBuilder.BuildEvaluator(m);
             sig = ev.Evaluate(in sig, 0.01);
         }

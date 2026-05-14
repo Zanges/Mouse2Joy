@@ -26,11 +26,30 @@ public static class WindowStyles
     {
         var helper = new WindowInteropHelper(window);
         var hwnd = helper.Handle;
-        if (hwnd == 0) return;
+        if (hwnd == 0)
+        {
+            return;
+        }
+
         var ex = GetWindowLong(hwnd, GWL_EXSTYLE);
         ex |= WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
-        if (clickThrough) ex |= WS_EX_TRANSPARENT;
-        else ex &= ~WS_EX_TRANSPARENT;
-        SetWindowLong(hwnd, GWL_EXSTYLE, ex);
+        if (clickThrough)
+        {
+            ex |= WS_EX_TRANSPARENT;
+        }
+        else
+        {
+            ex &= ~WS_EX_TRANSPARENT;
+        }
+
+        // SetWindowLong returns the previous value, or 0 on failure (use
+        // GetLastError to distinguish). For the overlay, a failure means
+        // the click-through style didn't apply -- log via Debug since this
+        // module has no ILogger dependency by design.
+        var previous = SetWindowLong(hwnd, GWL_EXSTYLE, ex);
+        if (previous == 0 && Marshal.GetLastWin32Error() != 0)
+        {
+            System.Diagnostics.Debug.WriteLine($"SetWindowLong(GWL_EXSTYLE) failed: {Marshal.GetLastWin32Error()}");
+        }
     }
 }

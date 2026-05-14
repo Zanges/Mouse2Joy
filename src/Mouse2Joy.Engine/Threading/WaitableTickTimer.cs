@@ -13,6 +13,7 @@ public sealed class WaitableTickTimer : IDisposable
     private const uint TIMER_ALL_ACCESS = 0x1F0003;
     private const uint CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x00000002;
     private const uint INFINITE = 0xFFFFFFFF;
+    private const uint WAIT_OBJECT_0 = 0x00000000;
 
     private readonly nint _handle;
     private readonly bool _useApi;
@@ -40,8 +41,14 @@ public sealed class WaitableTickTimer : IDisposable
             long due = -(long)(periodMs * 10_000.0);
             if (SetWaitableTimer(_handle, ref due, 0, 0, 0, false))
             {
-                WaitForSingleObject(_handle, INFINITE);
-                return;
+                // WAIT_OBJECT_0 = timer signalled normally. Anything else
+                // (WAIT_FAILED, abandoned, etc.) means we didn't actually
+                // wait -- fall through to the Stopwatch fallback so we
+                // don't return immediately and starve the engine tick.
+                if (WaitForSingleObject(_handle, INFINITE) == WAIT_OBJECT_0)
+                {
+                    return;
+                }
             }
         }
 
@@ -53,16 +60,22 @@ public sealed class WaitableTickTimer : IDisposable
         {
             var remaining = target - sw.Elapsed;
             if (remaining.TotalMilliseconds > 2)
+            {
                 Thread.Sleep(1);
+            }
             else
+            {
                 Thread.Yield();
+            }
         }
     }
 
     public void Dispose()
     {
         if (_handle != 0)
+        {
             CloseHandle(_handle);
+        }
     }
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]

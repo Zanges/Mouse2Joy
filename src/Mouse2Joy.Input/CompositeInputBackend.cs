@@ -11,7 +11,7 @@ namespace Mouse2Joy.Input;
 ///
 /// The keyboard hook MUST be installed from a thread with a Win32 message pump
 /// (WPF UI thread is the standard place). Pass the hook in already-installed
-/// or call <see cref="InstallKeyboardHook"/> from the UI thread.
+/// or call <see cref="LowLevelKeyboardBackend.Install"/> from the UI thread.
 /// </summary>
 public sealed class CompositeInputBackend : IInputBackend
 {
@@ -38,17 +38,28 @@ public sealed class CompositeInputBackend : IInputBackend
 
     public void StartCapture()
     {
-        if (_capturing) return;
+        if (_capturing)
+        {
+            return;
+        }
+
         _mouse.StartCapture();
         // Hook installation is the App's responsibility (must be UI thread).
         if (!_keyboard.IsInstalled)
+        {
             _logger.LogWarning("LowLevelKeyboardBackend hook is not installed. Call InstallKeyboardHook from the UI thread before StartCapture, or hotkeys will not fire.");
+        }
+
         _capturing = true;
     }
 
     public void StopCapture()
     {
-        if (!_capturing) return;
+        if (!_capturing)
+        {
+            return;
+        }
+
         _mouse.StopCapture();
         // Don't uninstall the keyboard hook on StopCapture: it's lightweight
         // and we want it to survive engine restarts. Disposed in Dispose().

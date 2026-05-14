@@ -63,7 +63,9 @@ internal sealed class WaitForTapResolutionEvaluator : IModifierEvaluator
                 _waitRemaining = 0;
                 _pendingFire = false;
                 if (fired && _config.PulseSeconds > 0)
+                {
                     _pulseRemaining = _config.PulseSeconds;
+                }
             }
         }
 
@@ -95,7 +97,9 @@ internal sealed class WaitForTapResolutionEvaluator : IModifierEvaluator
                     _waitRemaining = 0;
                     _pendingFire = false;
                     if (fired && _config.PulseSeconds > 0)
+                    {
                         _pulseRemaining = _config.PulseSeconds;
+                    }
                 }
                 // Engage passthrough regardless of pending state.
                 _passthroughActive = true;
@@ -134,7 +138,10 @@ internal sealed class WaitForTapResolutionEvaluator : IModifierEvaluator
         if (_pulseRemaining > 0)
         {
             _pulseRemaining -= dt;
-            if (_pulseRemaining < 0) _pulseRemaining = 0;
+            if (_pulseRemaining < 0)
+            {
+                _pulseRemaining = 0;
+            }
         }
 
         var pulseActive = _pulseRemaining > 0;

@@ -17,16 +17,30 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var x = input.ScalarValue;
-        if (double.IsNaN(x)) return Signal.ZeroScalar;
+        if (double.IsNaN(x))
+        {
+            return Signal.ZeroScalar;
+        }
+
         var sign = Math.Sign(x);
         var a = Math.Abs(x);
-        if (a > 1.0) a = 1.0;
+        if (a > 1.0)
+        {
+            a = 1.0;
+        }
 
         var n = _config.Exponent <= 0 ? 1.0 : _config.Exponent;
         // Clamp threshold strictly inside (0, 1) so segment remap is safe at the boundary.
         var t = _config.Threshold;
-        if (t < 1e-6) t = 1e-6;
-        if (t > 1.0 - 1e-6) t = 1.0 - 1e-6;
+        if (t < 1e-6)
+        {
+            t = 1e-6;
+        }
+
+        if (t > 1.0 - 1e-6)
+        {
+            t = 1.0 - 1e-6;
+        }
 
         var above = _config.Region == SegmentedCurveRegion.AboveThreshold;
         var shape = _config.Shape;
@@ -68,7 +82,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double HardAbove(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a <= t) return a;
+        if (a <= t)
+        {
+            return a;
+        }
+
         var u = (a - t) / (1.0 - t);
         var v = UnitCurve(u, n, shape);
         return t + v * (1.0 - t);
@@ -76,7 +94,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double HardBelow(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a >= t) return a;
+        if (a >= t)
+        {
+            return a;
+        }
+
         var u = a / t;
         var v = UnitCurve(u, n, shape);
         return v * t;
@@ -89,7 +111,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double SmoothStepAbove(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a <= t) return a;
+        if (a <= t)
+        {
+            return a;
+        }
+
         var u = (a - t) / (1.0 - t);
         var w = 3.0 * u * u - 2.0 * u * u * u;
         var linearPart = a;
@@ -100,7 +126,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double SmoothStepBelow(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a >= t) return a;
+        if (a >= t)
+        {
+            return a;
+        }
+
         var u = a / t;
         var w = 3.0 * u * u - 2.0 * u * u * u;          // w(0)=0 at tip, w(1)=1 at threshold
         var linearPart = a;
@@ -156,7 +186,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double HermiteAbove(double a, double t, double s, SegmentedCurveShape shape)
     {
-        if (a <= t) return a;
+        if (a <= t)
+        {
+            return a;
+        }
+
         var convex = HermiteAboveConvex(a, t, s);
         // Concave is the reflection across the chord y = a (both endpoints
         // lie on y = x, so reflecting a point at (a, convex) across the
@@ -168,7 +202,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double HermiteBelow(double a, double t, double s, SegmentedCurveShape shape)
     {
-        if (a >= t) return a;
+        if (a >= t)
+        {
+            return a;
+        }
+
         var convex = HermiteBelowConvex(a, t, s);
         // Below-threshold chord is also y = a (since endpoints are (0,0)
         // and (t,t), both on the diagonal). Concave reflects to 2a − convex.
@@ -225,7 +263,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double QuinticAbove(double a, double t, double s, SegmentedCurveShape shape)
     {
-        if (a <= t) return a;
+        if (a <= t)
+        {
+            return a;
+        }
+
         var convex = QuinticAboveConvex(a, t, s);
         // Reflect across chord y = a for concave. Preserves C² smoothness
         // at the threshold (rigid reflection of a C² curve is still C²).
@@ -234,7 +276,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double QuinticBelow(double a, double t, double s, SegmentedCurveShape shape)
     {
-        if (a >= t) return a;
+        if (a >= t)
+        {
+            return a;
+        }
+
         var convex = QuinticBelowConvex(a, t, s);
         return shape == SegmentedCurveShape.Convex ? convex : 2.0 * a - convex;
     }
@@ -258,7 +304,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double PowerAbove(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a <= t) return a;
+        if (a <= t)
+        {
+            return a;
+        }
+
         var u = (a - t) / (1.0 - t);
         // raw_convex(u) = u + (n-1)·u². raw_convex(1) = n. raw_convex(0) = 0.
         // raw_concave(u) = mirror = 1 − raw_convex(1 − u) = 1 − ((1−u) + (n−1)(1−u)²)
@@ -289,7 +339,11 @@ internal sealed class SegmentedResponseCurveEvaluator : IModifierEvaluator
 
     private static double PowerBelow(double a, double t, double n, SegmentedCurveShape shape)
     {
-        if (a >= t) return a;
+        if (a >= t)
+        {
+            return a;
+        }
+
         var u = a / t;
         double v;
         if (shape == SegmentedCurveShape.Convex)

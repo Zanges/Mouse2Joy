@@ -13,7 +13,7 @@ internal sealed class SingleInstanceGuard : IDisposable
 
     public void Dispose()
     {
-        try { if (IsFirstInstance) _mutex.ReleaseMutex(); } catch { /* ignore */ }
+        try { if (IsFirstInstance) { _mutex.ReleaseMutex(); } } catch { /* ignore */ }
         _mutex.Dispose();
     }
 }

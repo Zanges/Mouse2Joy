@@ -151,7 +151,10 @@ internal sealed class MultiTapEvaluator : IModifierEvaluator
         if (_pulseRemaining > 0)
         {
             _pulseRemaining -= dt;
-            if (_pulseRemaining < 0) _pulseRemaining = 0;
+            if (_pulseRemaining < 0)
+            {
+                _pulseRemaining = 0;
+            }
         }
         return Signal.Digital(_pulseRemaining > 0);
     }

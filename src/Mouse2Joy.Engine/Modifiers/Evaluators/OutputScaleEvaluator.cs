@@ -17,9 +17,20 @@ internal sealed class OutputScaleEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var v = input.ScalarValue * _config.Factor;
-        if (double.IsNaN(v)) v = 0;
-        if (v > 1.0) v = 1.0;
-        else if (v < -1.0) v = -1.0;
+        if (double.IsNaN(v))
+        {
+            v = 0;
+        }
+
+        if (v > 1.0)
+        {
+            v = 1.0;
+        }
+        else if (v < -1.0)
+        {
+            v = -1.0;
+        }
+
         return Signal.Scalar(v);
     }
 }

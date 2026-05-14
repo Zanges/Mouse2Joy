@@ -73,20 +73,30 @@ public sealed class StatusWidget : OverlayWidget
         return BuildPlan(Config, Snapshot).Size;
     }
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var render = BuildPlan(Config, Snapshot);
         // Set the visual's Width/Height so the hosting Canvas honours the auto-sized
         // footprint. The host (OverlayWidgetHost) doesn't size the widget itself —
         // it only positions it — so we drive size from here.
-        if (Width != render.Size.Width) Width = render.Size.Width;
-        if (Height != render.Size.Height) Height = render.Size.Height;
+        if (Width != render.Size.Width)
+        {
+            Width = render.Size.Width;
+        }
 
-        if (render.IsEmpty) return;
+        if (Height != render.Size.Height)
+        {
+            Height = render.Size.Height;
+        }
+
+        if (render.IsEmpty)
+        {
+            return;
+        }
 
         if (render.ShowBackground)
         {
-            dc.DrawRoundedRectangle(render.BackgroundBrush, Outline,
+            drawingContext.DrawRoundedRectangle(render.BackgroundBrush, Outline,
                 new Rect(0, 0, render.Size.Width, render.Size.Height), 4, 4);
         }
 
@@ -102,13 +112,13 @@ public sealed class StatusWidget : OverlayWidget
             {
                 if (g.GlyphRotation != 0)
                 {
-                    dc.PushTransform(new RotateTransform(g.GlyphRotation, g.RotationCentre.X, g.RotationCentre.Y));
-                    dc.DrawText(g.Text, g.DrawPosition);
-                    dc.Pop();
+                    drawingContext.PushTransform(new RotateTransform(g.GlyphRotation, g.RotationCentre.X, g.RotationCentre.Y));
+                    drawingContext.DrawText(g.Text, g.DrawPosition);
+                    drawingContext.Pop();
                 }
                 else
                 {
-                    dc.DrawText(g.Text, g.DrawPosition);
+                    drawingContext.DrawText(g.Text, g.DrawPosition);
                 }
             }
         }
@@ -119,19 +129,19 @@ public sealed class StatusWidget : OverlayWidget
             // around the centre of the AABB.
             if (render.Rotation != 0)
             {
-                dc.PushTransform(new RotateTransform(
+                drawingContext.PushTransform(new RotateTransform(
                     render.Rotation,
                     render.Size.Width / 2.0,
                     render.Size.Height / 2.0));
                 var offsetX = (render.Size.Width - render.ContentSize.Width) / 2.0;
                 var offsetY = (render.Size.Height - render.ContentSize.Height) / 2.0;
-                dc.DrawText(render.SingleText,
+                drawingContext.DrawText(render.SingleText,
                     new Point(offsetX + render.InkOriginX, offsetY + render.InkOriginY));
-                dc.Pop();
+                drawingContext.Pop();
             }
             else
             {
-                dc.DrawText(render.SingleText,
+                drawingContext.DrawText(render.SingleText,
                     new Point(render.InkOriginX, render.InkOriginY));
             }
         }
@@ -143,6 +153,7 @@ public sealed class StatusWidget : OverlayWidget
     /// for accurate text values) and at layout time (with a null snapshot, for
     /// auto-sizing on the resolver path before any rendering happens).
     /// </summary>
+    /// <param name="cfg">Widget configuration whose Options drive font, source, and styling choices.</param>
     /// <param name="snapshot">
     /// Live engine state. When null, source-resolved values are stand-ins of
     /// representative width — e.g., a button source uses pressedText so the
@@ -288,7 +299,11 @@ public sealed class StatusWidget : OverlayWidget
         {
             var ft = MakeFormattedText(ch.ToString(), typeface, fontSize, textBrush, underline);
             var ink = ft.BuildGeometry(new Point(0, 0))?.Bounds ?? Rect.Empty;
-            if (ink.IsEmpty) ink = new Rect(0, 0, ft.Width, ft.Height);
+            if (ink.IsEmpty)
+            {
+                ink = new Rect(0, 0, ft.Width, ft.Height);
+            }
+
             glyphs.Add((ft, ink, ft.Width));
         }
 
@@ -443,14 +458,22 @@ public sealed class StatusWidget : OverlayWidget
             case "Mode":
                 return snapshot?.Mode.ToString() ?? EngineMode.Active.ToString();
             case "Profile":
-                if (snapshot is null) return "(no profile)";
+                if (snapshot is null)
+                {
+                    return "(no profile)";
+                }
+
                 return string.IsNullOrEmpty(snapshot.ProfileName) ? "(no profile)" : snapshot.ProfileName;
             case "Button":
                 {
                     var pressedText = ReadOptionString(cfg, "pressedText", "Pressed");
                     var releasedText = ReadOptionString(cfg, "releasedText", "");
                     var mask = ParseButtonMask(sourceName);
-                    if (mask == XInputButtons.None) return "";
+                    if (mask == XInputButtons.None)
+                    {
+                        return "";
+                    }
+
                     if (snapshot is null)
                     {
                         // Use whichever string is wider so the box doesn't grow on press.
@@ -461,7 +484,11 @@ public sealed class StatusWidget : OverlayWidget
                 }
             case "Axis":
                 {
-                    if (!IsKnownAxis(sourceName)) return "";
+                    if (!IsKnownAxis(sourceName))
+                    {
+                        return "";
+                    }
+
                     var format = ReadOptionString(cfg, "axisFormat", "Decimal");
                     var decimals = Math.Max(0, Math.Min(4, ReadOptionInt(cfg, "axisDecimals", 2)));
                     var val = snapshot is null ? 0.0 : ReadAxisStatic(snapshot, sourceName);
@@ -506,7 +533,11 @@ public sealed class StatusWidget : OverlayWidget
 
     private static bool ReadOptionBool(WidgetConfig cfg, string key, bool fallback)
     {
-        if (!cfg.Options.TryGetValue(key, out var v)) return fallback;
+        if (!cfg.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind switch
         {
             System.Text.Json.JsonValueKind.True => true,
@@ -517,24 +548,40 @@ public sealed class StatusWidget : OverlayWidget
 
     private static string ReadOptionString(WidgetConfig cfg, string key, string fallback)
     {
-        if (!cfg.Options.TryGetValue(key, out var v)) return fallback;
+        if (!cfg.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? fallback : fallback;
     }
 
     private static int ReadOptionInt(WidgetConfig cfg, string key, int fallback)
     {
-        if (!cfg.Options.TryGetValue(key, out var v)) return fallback;
+        if (!cfg.Options.TryGetValue(key, out var v))
+        {
+            return fallback;
+        }
+
         return v.ValueKind == System.Text.Json.JsonValueKind.Number && v.TryGetInt32(out var n) ? n : fallback;
     }
 
     private static Brush ReadOptionColorBrush(WidgetConfig cfg, string key, Brush fallback)
     {
         var hex = ReadOptionString(cfg, key, "");
-        if (string.IsNullOrEmpty(hex)) return fallback;
+        if (string.IsNullOrEmpty(hex))
+        {
+            return fallback;
+        }
+
         try
         {
             var converted = ColorConverter.ConvertFromString(hex);
-            if (converted is not Color c) return fallback;
+            if (converted is not Color c)
+            {
+                return fallback;
+            }
+
             var brush = new SolidColorBrush(c);
             brush.Freeze();
             return brush;

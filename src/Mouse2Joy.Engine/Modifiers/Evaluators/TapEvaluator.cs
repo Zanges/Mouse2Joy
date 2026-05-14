@@ -74,7 +74,9 @@ internal sealed class TapEvaluator : IModifierEvaluator
                 _confirmWaitRemaining = 0;
                 _pendingFire = false;
                 if (fired && _config.PulseSeconds > 0)
+                {
                     _pulseRemaining = _config.PulseSeconds;
+                }
             }
         }
 
@@ -109,7 +111,9 @@ internal sealed class TapEvaluator : IModifierEvaluator
                         _confirmWaitRemaining = 0;
                         _pendingFire = false;
                         if (fired && _config.PulseSeconds > 0)
+                        {
                             _pulseRemaining = _config.PulseSeconds;
+                        }
                     }
                     // Engage passthrough — output mirrors input until release.
                     _passthroughActive = true;
@@ -161,7 +165,10 @@ internal sealed class TapEvaluator : IModifierEvaluator
         if (_pulseRemaining > 0)
         {
             _pulseRemaining -= dt;
-            if (_pulseRemaining < 0) _pulseRemaining = 0;
+            if (_pulseRemaining < 0)
+            {
+                _pulseRemaining = 0;
+            }
         }
 
         // --- 4) Compose output: pulse OR passthrough.

@@ -16,9 +16,17 @@ public static class WidgetDisplay
     /// </summary>
     public static string ResolveDisplayName(WidgetConfig w, IReadOnlyList<WidgetConfig> all)
     {
-        if (!string.IsNullOrWhiteSpace(w.Name)) return w.Name;
+        if (!string.IsNullOrWhiteSpace(w.Name))
+        {
+            return w.Name;
+        }
+
         var sameType = all.Where(p => p.Type == w.Type).ToList();
-        if (sameType.Count <= 1) return w.Type;
+        if (sameType.Count <= 1)
+        {
+            return w.Type;
+        }
+
         var idx = sameType.FindIndex(p => p.Id == w.Id) + 1;
         return $"{w.Type} #{idx}";
     }

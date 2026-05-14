@@ -3,7 +3,6 @@ using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Mouse2Joy.Engine.State;
 using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.UI.ViewModels;
@@ -39,12 +38,18 @@ public sealed partial class MainViewModel : ObservableObject
     {
         Profiles.Clear();
         foreach (var p in _svc.Profiles.LoadAll().OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+        {
             Profiles.Add(p);
+        }
+
         Settings = _svc.Settings.Load();
         if (!string.IsNullOrEmpty(Settings.LastProfileName))
         {
             var match = Profiles.FirstOrDefault(p => p.Name == Settings.LastProfileName);
-            if (match is not null) SelectedProfile = match;
+            if (match is not null)
+            {
+                SelectedProfile = match;
+            }
         }
         SelectedProfile ??= Profiles.FirstOrDefault();
         ActiveProfileName = _svc.Engine.ActiveProfile.Name;
@@ -64,7 +69,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void DuplicateProfile()
     {
-        if (SelectedProfile is null) return;
+        if (SelectedProfile is null)
+        {
+            return;
+        }
+
         var name = UniqueName(SelectedProfile.Name + " copy");
         var copy = SelectedProfile with { Name = name };
         _svc.Profiles.Save(copy);
@@ -75,7 +84,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void DeleteProfile()
     {
-        if (SelectedProfile is null) return;
+        if (SelectedProfile is null)
+        {
+            return;
+        }
+
         _svc.Profiles.Delete(SelectedProfile.Name);
         Reload();
     }
@@ -83,7 +96,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ActivateProfile()
     {
-        if (SelectedProfile is null) return;
+        if (SelectedProfile is null)
+        {
+            return;
+        }
+
         _svc.ApplyActiveProfile(SelectedProfile);
         Settings = Settings with { LastProfileName = SelectedProfile.Name };
         _svc.Settings.Save(Settings);
@@ -93,7 +110,10 @@ public sealed partial class MainViewModel : ObservableObject
     public bool TrySaveSelectedProfile(out string? error)
     {
         error = null;
-        if (SelectedProfile is null) return true;
+        if (SelectedProfile is null)
+        {
+            return true;
+        }
 
         var name = SelectedProfile.Name;
         if (string.IsNullOrWhiteSpace(name))
@@ -167,7 +187,10 @@ public sealed partial class MainViewModel : ObservableObject
         var name = baseName;
         var n = 2;
         while (Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
             name = $"{baseName} ({n++})";
+        }
+
         return name;
     }
 }

@@ -16,7 +16,12 @@ namespace Mouse2Joy.App;
 internal sealed class PanicHotkey : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
+
+    // MOD_ALT kept as documentation of the RegisterHotKey flag set; we
+    // currently only combine Ctrl+Shift.
+#pragma warning disable IDE0051
     private const uint MOD_ALT = 0x0001;
+#pragma warning restore IDE0051
     private const uint MOD_CONTROL = 0x0002;
     private const uint MOD_SHIFT = 0x0004;
     private const uint MOD_NOREPEAT = 0x4000;
@@ -65,7 +70,11 @@ internal sealed class PanicHotkey : IDisposable
 
     public void Dispose()
     {
-        if (_source is null) return;
+        if (_source is null)
+        {
+            return;
+        }
+
         try { UnregisterHotKey(_source.Handle, HotkeyId); } catch { /* ignore */ }
         try { _source.RemoveHook(WndProc); } catch { /* ignore */ }
         try { _source.Dispose(); } catch { /* ignore */ }

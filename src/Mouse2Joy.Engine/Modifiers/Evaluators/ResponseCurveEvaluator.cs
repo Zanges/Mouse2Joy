@@ -17,10 +17,18 @@ internal sealed class ResponseCurveEvaluator : IModifierEvaluator
     public Signal Evaluate(in Signal input, double dt)
     {
         var x = input.ScalarValue;
-        if (double.IsNaN(x)) return Signal.ZeroScalar;
+        if (double.IsNaN(x))
+        {
+            return Signal.ZeroScalar;
+        }
+
         var sign = Math.Sign(x);
         var a = Math.Abs(x);
-        if (a > 1.0) a = 1.0;
+        if (a > 1.0)
+        {
+            a = 1.0;
+        }
+
         var n = _config.Exponent <= 0 ? 1.0 : _config.Exponent;
         var shaped = Math.Pow(a, n);
         return Signal.Scalar(sign * shaped);

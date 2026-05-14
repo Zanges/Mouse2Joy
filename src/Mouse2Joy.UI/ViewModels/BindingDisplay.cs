@@ -106,18 +106,29 @@ public static class BindingDisplay
     {
         // lParam encoding for GetKeyNameText: bits 16-23 = scancode, bit 24 = extended.
         var lParam = ((int)key.Scancode) << 16;
-        if (key.Extended) lParam |= 1 << 24;
+        if (key.Extended)
+        {
+            lParam |= 1 << 24;
+        }
 
         var buf = new StringBuilder(64);
         var len = GetKeyNameTextW(lParam, buf, buf.Capacity);
         if (len > 0)
         {
             var name = buf.ToString();
-            if (!string.IsNullOrWhiteSpace(name)) return name;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                return name;
+            }
         }
         return $"Sc:{key.Scancode:X2}{(key.Extended ? " (E0)" : "")}";
     }
 
+    // StringBuilder marshalling is fine here: this is a one-shot call on
+    // the UI thread per binding-row formatter, not a hot path. The CA1838
+    // perf advice doesn't justify pulling in unsafe blocks.
+#pragma warning disable CA1838
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetKeyNameTextW")]
     private static extern int GetKeyNameTextW(int lParam, StringBuilder lpString, int cchSize);
+#pragma warning restore CA1838
 }

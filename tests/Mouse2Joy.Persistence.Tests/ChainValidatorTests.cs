@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using Mouse2Joy.Persistence;
+using FluentAssertions;
 using Mouse2Joy.Persistence.Models;
 
 namespace Mouse2Joy.Persistence.Tests;

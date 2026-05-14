@@ -12,7 +12,7 @@ public enum EngineMode
 
 /// <summary>
 /// Immutable snapshot of engine state. Single writer (engine tick) replaces
-/// the reference each tick via <see cref="Volatile.Write"/>; many readers
+/// the reference each tick via <see cref="System.Threading.Volatile"/>; many readers
 /// (overlay, UI status strip) read the latest reference lock-free. One
 /// allocation per tick — gen0-only, negligible GC pressure.
 /// </summary>

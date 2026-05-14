@@ -681,24 +681,28 @@ public class SegmentedResponseCurveEvaluatorTests
     {
         // out(t) = t for above-threshold across all combinations.
         foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
             foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
             {
                 var e = AboveStyleShape(0.3, 2.0, style, shape);
                 Eval(e, 0.3).Should().BeApproximately(0.3, 1e-9,
                     $"style={style} shape={shape} must pass through (t, t)");
             }
+        }
     }
 
     [Fact]
     public void Below_threshold_zero_in_zero_out_for_all_styles_and_shapes()
     {
         foreach (var style in Enum.GetValues<SegmentedCurveTransitionStyle>())
+        {
             foreach (var shape in Enum.GetValues<SegmentedCurveShape>())
             {
                 var e = BelowStyleShape(0.3, 2.0, style, shape);
                 Eval(e, 0.0).Should().BeApproximately(0.0, 1e-9,
                     $"style={style} shape={shape} must pass through (0, 0)");
             }
+        }
     }
 
     // ============================================================
@@ -1001,7 +1005,10 @@ public class RampUpEvaluatorTests
     {
         var e = new RampUpEvaluator(new RampUpModifier(1.0));
         // ramp up to 0.5
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Scalar(1.0), 0.1);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Scalar(1.0), 0.1);
+        }
         // now drop input to 0 — should be instant
         e.Evaluate(Signal.Scalar(0.0), 0.1).ScalarValue.Should().Be(0.0);
     }
@@ -1013,7 +1020,10 @@ public class RampUpEvaluatorTests
         // 0.5 seconds at dt=0.1 = 5 ticks; should reach 1.0
         Signal output = Signal.ZeroScalar;
         for (int i = 0; i < 5; i++)
+        {
             output = e.Evaluate(Signal.Scalar(1.0), 0.1);
+        }
+
         output.ScalarValue.Should().BeApproximately(1.0, 1e-9);
     }
 }
@@ -1051,7 +1061,10 @@ public class StickDynamicsEvaluatorTests
         var e = new StickDynamicsEvaluator(new StickDynamicsModifier(StickDynamicsMode.Velocity, 50.0, 100.0));
         Signal output = Signal.ZeroScalar;
         for (int i = 0; i < 100; i++)
+        {
             output = e.Evaluate(Signal.Delta(10), 0.01);
+        }
+
         output.ScalarValue.Should().BeApproximately(1.0, 1e-3);
     }
 
@@ -1069,7 +1082,9 @@ public class StickDynamicsEvaluatorTests
         var e = new StickDynamicsEvaluator(new StickDynamicsModifier(StickDynamicsMode.Persistent, 100.0, 0.0));
         e.Evaluate(Signal.Delta(50), 0.01).ScalarValue.Should().BeApproximately(0.5, 1e-9);
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Delta(0), 0.01).ScalarValue.Should().BeApproximately(0.5, 1e-9);
+        }
     }
 
     [Fact]
@@ -1138,7 +1153,10 @@ public class ChainEvaluatorTests
         // 100 counts → Persistent integrator output = 1.0; OutputScale halves it.
         // Saturate well beyond by sending more than enough.
         for (int i = 0; i < 20; i++)
+        {
             chain.Apply(RawEvent.ForMouseMove(0, 10, 0));
+        }
+
         var sig = chain.EndOfTick(0.01);
         sig.ScalarValue.Should().BeApproximately(0.5, 1e-9);
     }
@@ -1163,7 +1181,10 @@ public class ChainEvaluatorTests
         // 100 raw counts × 0.5 = 50 scaled counts → 50/100 = 0.5 deflection.
         // 200 raw counts × 0.5 = 100 scaled → 1.0 deflection — full reach.
         for (int i = 0; i < 20; i++)
+        {
             chain.Apply(RawEvent.ForMouseMove(0, 10, 0));
+        }
+
         var sig = chain.EndOfTick(0.01);
         sig.ScalarValue.Should().BeApproximately(1.0, 1e-9);
     }
@@ -1324,7 +1345,10 @@ public class SmoothingEvaluatorTests
         Signal output = Signal.ZeroScalar;
         // 10 ticks of dt=0.01 = 0.1s of step input at 1.0
         for (int i = 0; i < 10; i++)
+        {
             output = e.Evaluate(Signal.Scalar(1.0), 0.01);
+        }
+
         output.ScalarValue.Should().BeApproximately(1.0 - Math.Exp(-1.0), 0.01);
     }
 
@@ -1359,7 +1383,11 @@ public class AutoFireEvaluatorTests
         var firstHalf = e.Evaluate(Signal.Digital(true), dt).DigitalValue;
         firstHalf.Should().BeTrue("first sample of held input is in the high half of the period");
         // Walk to ~0.06s total — past the high/low boundary.
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(true), dt);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(true), dt);
+        }
+
         e.Evaluate(Signal.Digital(true), dt).DigitalValue.Should().BeFalse();
     }
 
@@ -1446,7 +1474,9 @@ public class TapEvaluatorTests
         var e = new TapEvaluator(new TapModifier(MaxHoldSeconds: 0.3, PulseSeconds: 0.05));
         // Hold for 0.5s, exceeding the cap.
         for (int i = 0; i < 50; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeFalse();
+        }
         // Release: should NOT fire.
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
@@ -1508,7 +1538,9 @@ public class MultiTapEvaluatorTests
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
         // Wait past the window with no second tap.
         for (int i = 0; i < 50; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1519,7 +1551,9 @@ public class MultiTapEvaluatorTests
         e.Evaluate(Signal.Digital(false), 0.01); // first tap registered
         // Drain past the window.
         for (int i = 0; i < 30; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01);
+        }
         // Second tap arrives too late — shouldn't fire (counter has reset).
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
@@ -1533,7 +1567,10 @@ public class MultiTapEvaluatorTests
         e.Evaluate(Signal.Digital(false), 0.01); // tap 1
         // Long press (exceeds MaxHold) — should NOT count toward the multi-tap.
         for (int i = 0; i < 30; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse(); // long release didn't count
     }
 
@@ -1575,7 +1612,9 @@ public class TapWithWaitForHigherTapsTests
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse(); // pending, not firing yet
         // Hold the wait open with no input for the configured wait window.
         for (int i = 0; i < 39; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
         // Past 0.4s wait → fire pulse.
         e.Evaluate(Signal.Digital(false), 0.02).DigitalValue.Should().BeTrue();
     }
@@ -1591,14 +1630,19 @@ public class TapWithWaitForHigherTapsTests
         var e = new TapEvaluator(WithWait());
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01); // first tap, pending
-        for (int i = 0; i < 10; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 10; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
         // Second short press during wait.
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeFalse();
         // Release: in suppression mode now; refreshes wait but no fire armed.
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
         // Run well past the wait window — should never fire.
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1611,11 +1655,16 @@ public class TapWithWaitForHigherTapsTests
         {
             e.Evaluate(Signal.Digital(true), 0.05);
             e.Evaluate(Signal.Digital(false), 0.01);
-            for (int i = 0; i < 10; i++) e.Evaluate(Signal.Digital(false), 0.01);
+            for (int i = 0; i < 10; i++)
+            {
+                e.Evaluate(Signal.Digital(false), 0.01);
+            }
         }
         // Run past the final wait window.
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1625,17 +1674,25 @@ public class TapWithWaitForHigherTapsTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01); // first tap, pending
         // Brief gap.
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
         // Long press starts. Press lands → cancels wait initially.
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeFalse();
         // Hold past MaxHold (0.3s).
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
         // The tick when overflow trips: pending pulse fires AND passthrough engages.
         var output = e.Evaluate(Signal.Digital(true), 0.01);
         output.DigitalValue.Should().BeTrue();
         // Continue holding: passthrough keeps output true.
         for (int i = 0; i < 20; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
         // Release: passthrough drops; pending pulse already expired.
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
@@ -1645,12 +1702,17 @@ public class TapWithWaitForHigherTapsTests
     {
         var e = new TapEvaluator(WithWait());
         // Press and hold past MaxHold without any prior tap.
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
         // Tick that overflows.
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
         // Continue holding.
         for (int i = 0; i < 50; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
         // Release: drop.
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
@@ -1673,12 +1735,21 @@ public class TapWithWaitForHigherTapsTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
         // Long press passthrough still works.
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
         for (int i = 0; i < 20; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
+
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
 }
@@ -1695,13 +1766,18 @@ public class MultiTapWithWaitForHigherTapsTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
         // Gap.
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
         // Tap 2 → pending.
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse(); // pending, not firing
         // Hold the wait open.
         for (int i = 0; i < 39; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
         // Past 0.4s wait → fire.
         e.Evaluate(Signal.Digital(false), 0.02).DigitalValue.Should().BeTrue();
     }
@@ -1713,16 +1789,26 @@ public class MultiTapWithWaitForHigherTapsTests
         // Double tap.
         doubleE.Evaluate(Signal.Digital(true), 0.05);
         doubleE.Evaluate(Signal.Digital(false), 0.01); // tap 1
-        for (int i = 0; i < 5; i++) doubleE.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            doubleE.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         doubleE.Evaluate(Signal.Digital(true), 0.05);
         doubleE.Evaluate(Signal.Digital(false), 0.01); // tap 2 → pending
         // Third tap arrives during wait.
-        for (int i = 0; i < 5; i++) doubleE.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            doubleE.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         doubleE.Evaluate(Signal.Digital(true), 0.05).DigitalValue.Should().BeFalse(); // wait canceled
         doubleE.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse(); // never fires
         // Confirm: ride out further time, still no fire.
         for (int i = 0; i < 50; i++)
+        {
             doubleE.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1731,7 +1817,11 @@ public class MultiTapWithWaitForHigherTapsTests
         var e = new MultiTapEvaluator(new MultiTapModifier(2, 0.4, 0.2, 0.05, WaitForHigherTaps: true));
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01); // pending wait
 
@@ -1743,7 +1833,9 @@ public class MultiTapWithWaitForHigherTapsTests
         for (int i = 0; i < 30; i++)
         {
             if (e.Evaluate(Signal.Digital(true), 0.01).DigitalValue)
+            {
                 sawTrue = true;
+            }
         }
         sawTrue.Should().BeTrue("the pending double-tap pulse should fire when the follow-up press exceeds MaxHold");
 
@@ -1757,7 +1849,11 @@ public class MultiTapWithWaitForHigherTapsTests
         var e = new MultiTapEvaluator(new MultiTapModifier(2, 0.4, 0.2, 0.05));
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeTrue();
     }
@@ -1772,7 +1868,10 @@ public class WaitForTapResolutionEvaluatorTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
         for (int i = 0; i < 39; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
+
         e.Evaluate(Signal.Digital(false), 0.02).DigitalValue.Should().BeTrue();
     }
 
@@ -1787,12 +1886,18 @@ public class WaitForTapResolutionEvaluatorTests
         var e = new WaitForTapResolutionEvaluator(new WaitForTapResolutionModifier(0.3, 0.4, 0.05));
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.05).DigitalValue.Should().BeFalse();
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
         // Run well past the wait — should never fire.
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1805,10 +1910,15 @@ public class WaitForTapResolutionEvaluatorTests
         {
             e.Evaluate(Signal.Digital(true), 0.05);
             e.Evaluate(Signal.Digital(false), 0.01);
-            for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+            for (int i = 0; i < 5; i++)
+            {
+                e.Evaluate(Signal.Digital(false), 0.01);
+            }
         }
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -1816,10 +1926,17 @@ public class WaitForTapResolutionEvaluatorTests
     {
         var e = new WaitForTapResolutionEvaluator(new WaitForTapResolutionModifier(0.3, 0.4, 0.05));
         // Press past MaxHold.
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
         for (int i = 0; i < 50; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
+
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
 
@@ -1831,13 +1948,23 @@ public class WaitForTapResolutionEvaluatorTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
         // Long second press.
-        for (int i = 0; i < 5; i++) e.Evaluate(Signal.Digital(false), 0.01);
+        for (int i = 0; i < 5; i++)
+        {
+            e.Evaluate(Signal.Digital(false), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.01);
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
         // Overflow trips → fire pending + passthrough.
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
         for (int i = 0; i < 20; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
+
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
 
@@ -1852,12 +1979,21 @@ public class WaitForTapResolutionEvaluatorTests
         e.Evaluate(Signal.Digital(true), 0.05);
         e.Evaluate(Signal.Digital(false), 0.01);
         for (int i = 0; i < 100; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
         // Long press passthrough still works.
-        for (int i = 0; i < 30; i++) e.Evaluate(Signal.Digital(true), 0.01);
+        for (int i = 0; i < 30; i++)
+        {
+            e.Evaluate(Signal.Digital(true), 0.01);
+        }
+
         e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
         for (int i = 0; i < 20; i++)
+        {
             e.Evaluate(Signal.Digital(true), 0.01).DigitalValue.Should().BeTrue();
+        }
+
         e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
     }
 
@@ -1870,7 +2006,9 @@ public class WaitForTapResolutionEvaluatorTests
         e.Reset();
         // No fire after reset, even after the wait window.
         for (int i = 0; i < 50; i++)
+        {
             e.Evaluate(Signal.Digital(false), 0.01).DigitalValue.Should().BeFalse();
+        }
     }
 }
 
@@ -1894,7 +2032,9 @@ public class ParametricCurveEvaluatorTests
     {
         var e = Make(new[] { (0.0, 0.0), (0.5, 0.5), (1.0, 1.0) });
         foreach (var x in new[] { 0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0 })
+        {
             Eval(e, x).Should().BeApproximately(x, 1e-9, $"identity at x={x}");
+        }
     }
 
     [Fact]
@@ -1911,8 +2051,10 @@ public class ParametricCurveEvaluatorTests
         // S-curve-ish: dip at low input, accelerate at high input.
         var e = Make(new[] { (0.0, 0.0), (0.5, 0.2), (1.0, 1.0) }, symmetric: true);
         foreach (var x in new[] { 0.1, 0.3, 0.5, 0.7, 0.9 })
+        {
             Eval(e, -x).Should().BeApproximately(-Eval(e, x), 1e-9,
                 $"symmetric mirror at ±{x}");
+        }
     }
 
     [Fact]
@@ -1942,7 +2084,9 @@ public class ParametricCurveEvaluatorTests
         var pts = new[] { (0.0, 0.05), (0.3, 0.4), (0.7, 0.8), (1.0, 0.95) };
         var e = Make(pts);
         foreach (var (x, y) in pts)
+        {
             Eval(e, x).Should().BeApproximately(y, 1e-9, $"interpolation at x={x}");
+        }
     }
 
     [Fact]

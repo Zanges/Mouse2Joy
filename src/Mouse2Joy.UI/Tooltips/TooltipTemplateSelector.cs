@@ -16,7 +16,9 @@ public sealed class TooltipTemplateSelector : DataTemplateSelector
     public override DataTemplate? SelectTemplate(object item, DependencyObject container)
     {
         if (item is string)
+        {
             return StringTemplate;
+        }
         // For TooltipContent (or any other typed item), return null so WPF
         // falls back to its normal DataType-keyed template lookup, which
         // resolves to the <DataTemplate DataType="tt:TooltipContent"/> in

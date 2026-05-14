@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using Mouse2Joy.Persistence.Models;
 using Mouse2Joy.UI.ViewModels.Editor;
@@ -75,9 +73,20 @@ internal sealed class CurveEditorWindowViewModel : INotifyPropertyChanged
         set
         {
             var clamped = value;
-            if (clamped < MinPointCount) clamped = MinPointCount;
-            if (clamped > MaxPointCount) clamped = MaxPointCount;
-            if (clamped == Mod.Points.Count) return;
+            if (clamped < MinPointCount)
+            {
+                clamped = MinPointCount;
+            }
+
+            if (clamped > MaxPointCount)
+            {
+                clamped = MaxPointCount;
+            }
+
+            if (clamped == Mod.Points.Count)
+            {
+                return;
+            }
 
             var newPoints = ResamplePointsTo(Mod.Points, clamped, Mod.Symmetric);
             _card.Update(Mod with { Points = newPoints });
@@ -101,7 +110,11 @@ internal sealed class CurveEditorWindowViewModel : INotifyPropertyChanged
         for (int i = 0; i < newCount; i++)
         {
             var x = xMin + step * i;
-            if (i == newCount - 1) x = xMax;
+            if (i == newCount - 1)
+            {
+                x = xMax;
+            }
+
             result[i] = new CurvePoint(x, EvaluateLinear(sorted, x));
         }
         return result;
@@ -109,10 +122,26 @@ internal sealed class CurveEditorWindowViewModel : INotifyPropertyChanged
 
     private static double EvaluateLinear(CurvePoint[] sorted, double x)
     {
-        if (sorted.Length == 0) return x;
-        if (sorted.Length == 1) return sorted[0].Y;
-        if (x <= sorted[0].X) return sorted[0].Y;
-        if (x >= sorted[^1].X) return sorted[^1].Y;
+        if (sorted.Length == 0)
+        {
+            return x;
+        }
+
+        if (sorted.Length == 1)
+        {
+            return sorted[0].Y;
+        }
+
+        if (x <= sorted[0].X)
+        {
+            return sorted[0].Y;
+        }
+
+        if (x >= sorted[^1].X)
+        {
+            return sorted[^1].Y;
+        }
+
         for (int i = 0; i < sorted.Length - 1; i++)
         {
             if (x <= sorted[i + 1].X)

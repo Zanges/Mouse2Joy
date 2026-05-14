@@ -64,7 +64,11 @@ public partial class OverlayWindow : Window
 
     private void OnUiTick(object? sender, EventArgs e)
     {
-        if (_engine is null) return;
+        if (_engine is null)
+        {
+            return;
+        }
+
         _host.Tick(_engine.Current);
     }
 }

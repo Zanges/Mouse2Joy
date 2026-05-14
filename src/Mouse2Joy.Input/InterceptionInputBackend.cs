@@ -40,7 +40,10 @@ public sealed class InterceptionInputBackend : IInputBackend
 
     public void StartCapture()
     {
-        if (_running) return;
+        if (_running)
+        {
+            return;
+        }
 
         _context = InterceptionNative.CreateContext();
         if (_context == 0)
@@ -103,7 +106,9 @@ public sealed class InterceptionInputBackend : IInputBackend
     public void SetSuppressionPredicate(Func<RawEvent, bool> shouldSwallow)
     {
         lock (_predicateGate)
+        {
             _shouldSwallow = shouldSwallow ?? (_ => false);
+        }
     }
 
     public void Dispose()
@@ -129,9 +134,14 @@ public sealed class InterceptionInputBackend : IInputBackend
             }
 
             if (device == 0)
+            {
                 continue;
+            }
+
             if (InterceptionNative.Receive(_context, device, ref stroke, 1) <= 0)
+            {
                 continue;
+            }
 
             // Mouse-only backend: keyboard strokes are handled by the
             // LowLevelKeyboardBackend so that synthetic input is also captured.
@@ -158,59 +168,112 @@ public sealed class InterceptionInputBackend : IInputBackend
             }
 
             if (!swallow)
+            {
                 ForwardStroke(device, ref stroke);
+            }
         }
     }
 
     private bool ShouldSwallow(in RawEvent ev)
     {
         if ((SuppressionMode)_mode == SuppressionMode.PassThrough)
+        {
             return false;
+        }
+
         Func<RawEvent, bool> pred;
         lock (_predicateGate)
+        {
             pred = _shouldSwallow;
+        }
+
         try { return pred(ev); }
         catch { return false; }
     }
 
     private void ForwardStroke(int device, ref InterceptionNative.Stroke stroke)
     {
-        try { InterceptionNative.Send(_context, device, ref stroke, 1); }
+        try
+        {
+            // Send returns the count of strokes actually forwarded. A return
+            // of zero typically means the context was invalidated (driver
+            // detached, USB device removed). Log so we notice silent drops.
+            var sent = InterceptionNative.Send(_context, device, ref stroke, 1);
+            if (sent != 1)
+            {
+                _logger.LogWarning("Interception Send forwarded {Sent}/1 strokes for device {Device}", sent, device);
+            }
+        }
         catch (Exception ex) { _logger.LogWarning(ex, "Send failed for device {Device}", device); }
     }
 
     private static IEnumerable<RawEvent> ProjectMouse(InterceptionNative.MouseStroke ms, long ticks)
     {
         if (ms.X != 0 || ms.Y != 0)
+        {
             yield return RawEvent.ForMouseMove(ms.X, ms.Y, ticks);
+        }
 
         var s = ms.State;
         if ((s & InterceptionNative.MouseState.LeftButtonDown) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Left, true, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.LeftButtonUp) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Left, false, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.RightButtonDown) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Right, true, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.RightButtonUp) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Right, false, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.MiddleButtonDown) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Middle, true, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.MiddleButtonUp) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.Middle, false, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.Button4Down) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.X1, true, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.Button4Up) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.X1, false, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.Button5Down) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.X2, true, KeyModifiers.None, ticks);
+        }
+
         if ((s & InterceptionNative.MouseState.Button5Up) != 0)
+        {
             yield return RawEvent.ForMouseButton(MouseButton.X2, false, KeyModifiers.None, ticks);
+        }
 
         if ((s & InterceptionNative.MouseState.Wheel) != 0 && ms.Rolling != 0)
         {
             var dir = ms.Rolling > 0 ? ScrollDirection.Up : ScrollDirection.Down;
             int clicks = Math.Abs(ms.Rolling) / 120;
-            if (clicks == 0) clicks = 1;
+            if (clicks == 0)
+            {
+                clicks = 1;
+            }
+
             yield return RawEvent.ForMouseScroll(dir, clicks, KeyModifiers.None, ticks);
         }
     }

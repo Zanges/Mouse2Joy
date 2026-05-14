@@ -1,5 +1,8 @@
 namespace Mouse2Joy.UI.Overlay.Widgets;
 
+// Tag enum values intentionally match primitive type names (Bool/String/Int)
+// so the editor schema reads naturally; suppress CA1720 here.
+#pragma warning disable CA1720
 public enum OptionKind
 {
     Bool,
@@ -8,6 +11,7 @@ public enum OptionKind
     Int,
     Enum
 }
+#pragma warning restore CA1720
 
 /// <summary>
 /// Describes one editable option for a widget. The Widget Editor UI renders
@@ -27,7 +31,7 @@ public sealed record OptionDescriptor(
 public static class WidgetSchemas
 {
     /// <summary>
-    /// Map from a <see cref="WidgetConfig.Type"/> string to that widget's
+    /// Map from a <c>WidgetConfig.Type</c> string to that widget's
     /// editable option list. Returns an empty list for unknown types so the
     /// editor can render a degraded but functional form.
     /// </summary>

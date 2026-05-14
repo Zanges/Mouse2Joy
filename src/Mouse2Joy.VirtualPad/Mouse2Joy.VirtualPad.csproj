@@ -5,6 +5,7 @@
   <ItemGroup>
     <PackageReference Include="Nefarius.ViGEm.Client" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  <PackageReference Include="System.Reactive" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mouse2Joy.Engine\Mouse2Joy.Engine.csproj" />
